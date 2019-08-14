@@ -1,0 +1,11 @@
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: openshift-jenkins-operator
+subjects:
+- kind: ServiceAccount
+  name: openshift-jenkins-operator
+roleRef:
+  kind: Role
+  name: openshift-jenkins-operator
+  apiGroup: rbac.authorization.k8s.io

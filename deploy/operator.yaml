@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: openshift-jenkins-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      name: openshift-jenkins-operator
+  template:
+    metadata:
+      labels:
+        name: openshift-jenkins-operator
+    spec:
+      serviceAccountName: openshift-jenkins-operator
+      containers:
+        - name: openshift-jenkins-operator
+          # Replace this with the built image name
+          image: REPLACE_IMAGE
+          command:
+          - openshift-jenkins-operator
+          imagePullPolicy: Always
+          env:
+            - name: WATCH_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: OPERATOR_NAME
+              value: "openshift-jenkins-operator"
