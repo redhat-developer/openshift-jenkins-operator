@@ -1,0 +1,7 @@
+packageName: jenkins-operator
+channels:
+- name: dev
+  currentCSV: jenkins-operator.v0.0.1
+- name: stable
+  currentCSV: jenkins-operator.v0.0.1
+defaultChannel: dev
