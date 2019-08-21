@@ -3,5 +3,4 @@ kind: Jenkins
 metadata:
   name: example-jenkins
 spec:
-  # Add fields here
-  size: 3
+  size: 3 # Add fields here

@@ -5,7 +5,7 @@ metadata:
   name: openshift-jenkins-operator
 rules:
 - apiGroups:
-  - ""
+  - ''
   resources:
   - pods
   - services
@@ -42,7 +42,7 @@ rules:
   verbs:
   - update
 - apiGroups:
-  - ""
+  - ''
   resources:
   - pods
   verbs:

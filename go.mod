@@ -3,6 +3,7 @@ module github.com/akram/openshift-jenkins-operator
 require (
 	github.com/NYTimes/gziphandler v1.0.1 // indirect
 	github.com/go-openapi/spec v0.19.0
+	github.com/openshift/api v3.9.0+incompatible
 	github.com/operator-framework/operator-sdk v0.10.1-0.20190812222044-9542d611c71b
 	github.com/spf13/pflag v1.0.3
 	k8s.io/api v0.0.0-20190612125737-db0771252981

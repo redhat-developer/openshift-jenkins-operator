@@ -23,6 +23,7 @@ X_FLAG =
 UNAME_S := $(shell uname -s)
 CONTAINER_BUILDER = buildah
 CONTAINER_RUNNER = podman
+GOOS=linux
 ifeq ($(VERBOSE),1)
 	Q =
 endif
@@ -38,6 +39,7 @@ endif
 ifeq ($(UNAME_S),Darwin)
 	CONTAINER_BUILDER = docker
 	CONTAINER_RUNNER = docker
+        GOOS = darwin
 endif
 
 
@@ -239,7 +241,7 @@ test-e2e-olm-ci:
 build: out/operator
 
 out/operator:
-	$(Q)GOARCH=amd64 GOOS=linux go build ${V_FLAG} -o ./out/operator cmd/manager/main.go
+	$(Q)GOARCH=amd64 GOOS=$(GOOS) go build ${V_FLAG} -o ./out/operator cmd/manager/main.go
 
 ## Build-Image: using operator-sdk to build a new image
 build-image:
@@ -306,13 +308,13 @@ deploy-rbac:
 .PHONY: deploy-crds
 ## Deploy-CRD: Deploy CRD
 deploy-crds:
-	$(Q)kubectl create -f deploy/apps_v1alpha1_jenkins_crd.yaml
+	$(Q)kubectl create -f deploy/crds/jenkins_v1alpha1_jenkins_crd.yaml
 
 .PHONY: deploy-clean
 ## Deploy-Clean: Removing CRDs and CRs
 deploy-clean:
-	$(Q)-kubectl delete -f deploy/apps_v1alpha1_jenkins_cr.yaml
-	$(Q)-kubectl delete -f deploy/apps_v1alpha1_jenkins_crd.yaml
+	$(Q)-kubectl delete -f deploy/crds/jenkins_v1alpha1_jenkins_cr.yaml
+	$(Q)-kubectl delete -f deploy/crds/jenkins_v1alpha1_jenkins_crd.yaml
 	$(Q)-kubectl delete -f deploy/operator.yaml
 	$(Q)-kubectl delete -f deploy/role_binding.yaml
 	$(Q)-kubectl delete -f deploy/role.yaml
