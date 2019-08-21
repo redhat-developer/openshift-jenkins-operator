@@ -4,6 +4,7 @@ import (
 	"context"
 
 	jenkinsv1alpha1 "github.com/akram/openshift-jenkins-operator/pkg/apis/jenkins/v1alpha1"
+	"github.com/openshift/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -20,11 +21,6 @@ import (
 )
 
 var log = logf.Log.WithName("controller_jenkins")
-
-/**
-* USER ACTION REQUIRED: This is a scaffold file intended for the user to modify with their own Controller
-* business logic.  Delete these comments after modifying this file.*
- */
 
 // Add creates a new Jenkins Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
@@ -51,9 +47,8 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
-	// TODO(user): Modify this to be the types you create that are owned by the primary resource
-	// Watch for changes to secondary resource Pods and requeue the owner Jenkins
-	err = c.Watch(&source.Kind{Type: &corev1.Pod{}}, &handler.EnqueueRequestForOwner{
+	// Watch for changes to secondary resource DeploymentConfig and requeue the owner Jenkins
+	err = c.Watch(&source.Kind{Type: &v1.DeploymentConfig{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
 		OwnerType:    &jenkinsv1alpha1.Jenkins{},
 	})
@@ -101,53 +96,63 @@ func (r *ReconcileJenkins) Reconcile(request reconcile.Request) (reconcile.Resul
 	}
 
 	// Define a new Pod object
-	pod := newPodForCR(instance)
+	dc := newDeploymentConfigForCR(instance)
 
 	// Set Jenkins instance as the owner and controller
-	if err := controllerutil.SetControllerReference(instance, pod, r.scheme); err != nil {
+	if err := controllerutil.SetControllerReference(instance, dc, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
 
-	// Check if this Pod already exists
-	found := &corev1.Pod{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: pod.Name, Namespace: pod.Namespace}, found)
+	// Check if this DC already exists
+	found := &v1.DeploymentConfig{}
+	err = r.client.Get(context.TODO(), types.NamespacedName{Name: dc.Name, Namespace: dc.Namespace}, found)
 	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Info("Creating a new Pod", "Pod.Namespace", pod.Namespace, "Pod.Name", pod.Name)
-		err = r.client.Create(context.TODO(), pod)
+		reqLogger.Info("Creating a new DeploymentConfig", "DeploymentConfig.Namespace", dc.Namespace, "DeploymentConfig.Name", dc.Name)
+		err = r.client.Create(context.TODO(), dc)
 		if err != nil {
 			return reconcile.Result{}, err
 		}
 
-		// Pod created successfully - don't requeue
+		// DC created successfully - don't requeue
 		return reconcile.Result{}, nil
 	} else if err != nil {
 		return reconcile.Result{}, err
 	}
 
-	// Pod already exists - don't requeue
-	reqLogger.Info("Skip reconcile: Pod already exists", "Pod.Namespace", found.Namespace, "Pod.Name", found.Name)
+	// DC already exists - don't requeue
+	reqLogger.Info("Skip reconcile: DeploymentConfig already exists", "DeploymentConfig.Namespace", found.Namespace, "DeploymentConfig.Name", found.Name)
 	return reconcile.Result{}, nil
 }
 
-// newPodForCR returns a busybox pod with the same name/namespace as the cr
-func newPodForCR(cr *jenkinsv1alpha1.Jenkins) *corev1.Pod {
+// newDeploymentConfigForCR returns a jenkins DeploymentConfig with the same name/namespace as the cr
+func newDeploymentConfigForCR(cr *jenkinsv1alpha1.Jenkins) *v1.DeploymentConfig {
 	labels := map[string]string{
-		"app": cr.Name,
+		"app":  cr.Name,
+		"test": "akram",
 	}
-	return &corev1.Pod{
+	dc := &v1.DeploymentConfig{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      cr.Name + "-pod",
+			Name:      cr.Name,
 			Namespace: cr.Namespace,
 			Labels:    labels,
 		},
-		Spec: corev1.PodSpec{
-			Containers: []corev1.Container{
-				{
-					Name:    "busybox",
-					Image:   "busybox",
-					Command: []string{"sleep", "3600"},
+		Spec: v1.DeploymentConfigSpec{
+			Replicas: 1,
+			Selector: labels,
+			Template: &corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: labels,
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Image: "image-registry.openshift-image-registry.svc:5000/openshift/jenkins",
+							Name:  "jenkins",
+						},
+					},
 				},
 			},
 		},
 	}
+	return dc
 }

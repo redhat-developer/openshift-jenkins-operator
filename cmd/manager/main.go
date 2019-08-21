@@ -14,6 +14,7 @@ import (
 	"github.com/akram/openshift-jenkins-operator/pkg/apis"
 	"github.com/akram/openshift-jenkins-operator/pkg/controller"
 
+	openshiftv1 "github.com/openshift/api/apps/v1"
 	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
 	kubemetrics "github.com/operator-framework/operator-sdk/pkg/kube-metrics"
 	"github.com/operator-framework/operator-sdk/pkg/leader"
@@ -67,11 +68,7 @@ func main() {
 
 	printVersion()
 
-	namespace, err := k8sutil.GetWatchNamespace()
-	if err != nil {
-		log.Error(err, "Failed to get watch namespace")
-		os.Exit(1)
-	}
+	namespace := "" // namespace is set to empty string so we can watch all namespaces
 
 	// Get a config to talk to the apiserver
 	cfg, err := config.GetConfig()
@@ -103,6 +100,13 @@ func main() {
 
 	// Setup Scheme for all resources
 	if err := apis.AddToScheme(mgr.GetScheme()); err != nil {
+		log.Error(err, "")
+		os.Exit(1)
+	}
+
+	//TODO register only the required Kinds, not all the apis
+	// Adding the openshift v1 api
+	if err := openshiftv1.AddToScheme(mgr.GetScheme()); err != nil {
 		log.Error(err, "")
 		os.Exit(1)
 	}
