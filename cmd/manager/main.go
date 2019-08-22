@@ -7,12 +7,11 @@ import (
 	"os"
 	"runtime"
 
-	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/client-go/rest"
 
 	"github.com/akram/openshift-jenkins-operator/pkg/apis"
-	"github.com/akram/openshift-jenkins-operator/pkg/controller"
+	jenkinscontroller "github.com/akram/openshift-jenkins-operator/pkg/controller"
 
 	appsv1 "github.com/openshift/api/apps/v1"
 	imagev1 "github.com/openshift/api/image/v1"
@@ -26,6 +25,9 @@ import (
 	sdkVersion "github.com/operator-framework/operator-sdk/version"
 	"github.com/spf13/pflag"
 	v1 "k8s.io/api/core/v1"
+	k8sruntime "k8s.io/apimachinery/pkg/runtime"
+	//	k8smanager "sigs.k8s.io/controller-runtime/pkg/manager"
+
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -33,19 +35,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/runtime/signals"
 )
 
-// Change below variables to serve metrics on different host or port.
 var (
 	metricsHost               = "0.0.0.0"
 	metricsPort         int32 = 8383
 	operatorMetricsPort int32 = 8686
 )
 var log = logf.Log.WithName("cmd")
-
-func printVersion() {
-	log.Info(fmt.Sprintf("Go Version: %s", runtime.Version()))
-	log.Info(fmt.Sprintf("Go OS/Arch: %s/%s", runtime.GOOS, runtime.GOARCH))
-	log.Info(fmt.Sprintf("Version of operator-sdk: %v", sdkVersion.Version))
-}
 
 func main() {
 	// Add the zap logger flag set to the CLI.
@@ -55,24 +50,64 @@ func main() {
 	logf.SetLogger(zap.Logger())
 	printVersion()
 
-	namespace := "" // namespace is set to empty string so we can watch all namespaces
+	namespace := ""          // namespace is set to empty string so we can watch all namespaces
+	cfg := getConfigOrExit() // Get a config to talk to the apiserver
+	ctx := context.TODO()    // it is still unclear which context to use, so we use TODO
+	becomeLeaderOrExit(ctx)  // Become the leader before proceeding
+	mgr := initializeManagerOrExit(cfg, namespace)
 
+	log.Info("Registering Components.")
+	registerComponentOrExit(mgr, apis.AddToScheme)    // Setup Scheme for all resources
+	registerComponentOrExit(mgr, appsv1.AddToScheme)  // Adding the apps v1 api
+	registerComponentOrExit(mgr, imagev1.AddToScheme) // Adding the imagev1
+	registerComponentOrExit(mgr, routev1.AddToScheme) // Adding the routev1
+	registerComponentOrExit(mgr, apis.AddToScheme)    // Setup Scheme for all resources
+	log.Info("All components registered successfully.")
+
+	// Setup all Controllers , add here other calls to your controllers
+	log.Info("Registering controllers.")
+	setupControllerOrExit(mgr, jenkinscontroller.AddToManager) // Setup jenkins-controller
+	log.Info("All controllers registered successfully.")
+
+	log.Info("Intializing metrics server")
+	initializeMetricsServer(cfg, ctx, namespace)
+	log.Info("Metrics server initialization complete.")
+
+	log.Info("Starting the Cmd.")
+	// Start the Cmd
+	if err := mgr.Start(signals.SetupSignalHandler()); err != nil {
+		log.Error(err, "Manager exited non-zero")
+		os.Exit(1)
+	}
+}
+
+func printVersion() {
+	log.Info(fmt.Sprintf("Go Version: %s", runtime.Version()))
+	log.Info(fmt.Sprintf("Go OS/Arch: %s/%s", runtime.GOOS, runtime.GOARCH))
+	log.Info(fmt.Sprintf("Version of operator-sdk: %v", sdkVersion.Version))
+}
+
+// Get a config to talk to the apiserver
+func getConfigOrExit() *rest.Config {
 	// Get a config to talk to the apiserver
 	cfg, err := config.GetConfig()
 	if err != nil {
-		log.Error(err, "")
+		log.Error(err, "Cannot get config to talk to the apiserver: Exiting")
 		os.Exit(1)
 	}
+	return cfg
+}
 
-	ctx := context.TODO()
-	// Become the leader before proceeding
-	err = leader.Become(ctx, "openshift-jenkins-operator-lock")
+func becomeLeaderOrExit(ctx context.Context) {
+	err := leader.Become(ctx, "openshift-jenkins-operator-lock")
 	if err != nil {
 		log.Error(err, "")
 		os.Exit(1)
 	}
+}
 
-	// Create a new Cmd to provide shared dependencies and start components
+// Create a new Cmd to provide shared dependencies and start components
+func initializeManagerOrExit(cfg *rest.Config, namespace string) manager.Manager {
 	mgr, err := manager.New(cfg, manager.Options{
 		Namespace:          namespace,
 		MapperProvider:     restmapper.NewDynamicRESTMapper,
@@ -82,43 +117,32 @@ func main() {
 		log.Error(err, "")
 		os.Exit(1)
 	}
+	return mgr
+}
 
-	log.Info("Registering Components.")
-
+// Setup Scheme for a resources
+func registerComponentOrExit(mgr manager.Manager, f func(*k8sruntime.Scheme) error) {
 	// Setup Scheme for all resources
-	if err := apis.AddToScheme(mgr.GetScheme()); err != nil {
+	if err := f(mgr.GetScheme()); err != nil {
 		log.Error(err, "")
 		os.Exit(1)
 	}
 
-	// Adding the apps v1 api
-	if err := appsv1.AddToScheme(mgr.GetScheme()); err != nil {
+}
+
+// Register a controller to a manager
+func setupControllerOrExit(mgr manager.Manager, f func(manager.Manager) error) {
+	// Register a controller to a manager
+	if err := f(mgr); err != nil {
 		log.Error(err, "")
 		os.Exit(1)
 	}
+}
 
-	// Adding the imagev1
-	if err := imagev1.AddToScheme(mgr.GetScheme()); err != nil {
-		log.Error(err, "")
-		os.Exit(1)
-	}
-
-	// Adding the routev1
-	if err := routev1.AddToScheme(mgr.GetScheme()); err != nil {
-		log.Error(err, "")
-		os.Exit(1)
-	}
-
-	// Setup all Controllers
-	if err := controller.AddToManager(mgr); err != nil {
-		log.Error(err, "")
-		os.Exit(1)
-	}
-
-	if err = serveCRMetrics(cfg); err != nil {
+func initializeMetricsServer(cfg *rest.Config, ctx context.Context, namespace string) {
+	if err := serveCRMetrics(cfg); err != nil {
 		log.Info("Could not generate and serve custom resource metrics", "error", err.Error())
 	}
-
 	// Add to the below struct any other metrics ports you want to expose.
 	servicePorts := []v1.ServicePort{
 		{Port: metricsPort, Name: metrics.OperatorPortName, Protocol: v1.ProtocolTCP, TargetPort: intstr.IntOrString{Type: intstr.Int, IntVal: metricsPort}},
@@ -129,7 +153,6 @@ func main() {
 	if err != nil {
 		log.Info("Could not create metrics Service", "error", err.Error())
 	}
-
 	// CreateServiceMonitors will automatically create the prometheus-operator ServiceMonitor resources
 	// necessary to configure Prometheus to scrape metrics from this operator.
 	services := []*v1.Service{service}
@@ -141,14 +164,6 @@ func main() {
 		if err == metrics.ErrServiceMonitorNotPresent {
 			log.Info("Install prometheus-operator in your cluster to create ServiceMonitor objects", "error", err.Error())
 		}
-	}
-
-	log.Info("Starting the Cmd.")
-
-	// Start the Cmd
-	if err := mgr.Start(signals.SetupSignalHandler()); err != nil {
-		log.Error(err, "Manager exited non-zero")
-		os.Exit(1)
 	}
 }
 
