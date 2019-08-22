@@ -4,7 +4,9 @@ import (
 	"context"
 
 	jenkinsv1alpha1 "github.com/akram/openshift-jenkins-operator/pkg/apis/jenkins/v1alpha1"
-	"github.com/openshift/api/apps/v1"
+	appsv1 "github.com/openshift/api/apps/v1"
+	imagev1 "github.com/openshift/api/image/v1"
+	routev1 "github.com/openshift/api/route/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -48,7 +50,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	}
 
 	// Watch for changes to secondary resource DeploymentConfig and requeue the owner Jenkins
-	err = c.Watch(&source.Kind{Type: &v1.DeploymentConfig{}}, &handler.EnqueueRequestForOwner{
+	err = c.Watch(&source.Kind{Type: &appsv1.DeploymentConfig{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
 		OwnerType:    &jenkinsv1alpha1.Jenkins{},
 	})
@@ -56,6 +58,32 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
+	// Watch for changes to secondary resource ImageStream and requeue the owner Jenkins
+	err = c.Watch(&source.Kind{Type: &imagev1.ImageStream{}}, &handler.EnqueueRequestForOwner{
+		IsController: true,
+		OwnerType:    &jenkinsv1alpha1.Jenkins{},
+	})
+	if err != nil {
+		return err
+	}
+
+	// Watch for changes to secondary resource ServiceAccount and requeue the owner Jenkins
+	err = c.Watch(&source.Kind{Type: &corev1.ServiceAccount{}}, &handler.EnqueueRequestForOwner{
+		IsController: true,
+		OwnerType:    &jenkinsv1alpha1.Jenkins{},
+	})
+	if err != nil {
+		return err
+	}
+
+	// Watch for changes to secondary resource Route and requeue the owner Jenkins
+	err = c.Watch(&source.Kind{Type: &routev1.Route{}}, &handler.EnqueueRequestForOwner{
+		IsController: true,
+		OwnerType:    &jenkinsv1alpha1.Jenkins{},
+	})
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -104,7 +132,7 @@ func (r *ReconcileJenkins) Reconcile(request reconcile.Request) (reconcile.Resul
 	}
 
 	// Check if this DC already exists
-	found := &v1.DeploymentConfig{}
+	found := &appsv1.DeploymentConfig{}
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: dc.Name, Namespace: dc.Namespace}, found)
 	if err != nil && errors.IsNotFound(err) {
 		reqLogger.Info("Creating a new DeploymentConfig", "DeploymentConfig.Namespace", dc.Namespace, "DeploymentConfig.Name", dc.Name)
@@ -125,18 +153,18 @@ func (r *ReconcileJenkins) Reconcile(request reconcile.Request) (reconcile.Resul
 }
 
 // newDeploymentConfigForCR returns a jenkins DeploymentConfig with the same name/namespace as the cr
-func newDeploymentConfigForCR(cr *jenkinsv1alpha1.Jenkins) *v1.DeploymentConfig {
+func newDeploymentConfigForCR(cr *jenkinsv1alpha1.Jenkins) *appsv1.DeploymentConfig {
 	labels := map[string]string{
 		"app":  cr.Name,
 		"test": "akram",
 	}
-	dc := &v1.DeploymentConfig{
+	dc := &appsv1.DeploymentConfig{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      cr.Name,
 			Namespace: cr.Namespace,
 			Labels:    labels,
 		},
-		Spec: v1.DeploymentConfigSpec{
+		Spec: appsv1.DeploymentConfigSpec{
 			Replicas: 1,
 			Selector: labels,
 			Template: &corev1.PodTemplateSpec{
