@@ -14,7 +14,9 @@ import (
 	"github.com/akram/openshift-jenkins-operator/pkg/apis"
 	"github.com/akram/openshift-jenkins-operator/pkg/controller"
 
-	openshiftv1 "github.com/openshift/api/apps/v1"
+	appsv1 "github.com/openshift/api/apps/v1"
+	imagev1 "github.com/openshift/api/image/v1"
+	routev1 "github.com/openshift/api/route/v1"
 	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
 	kubemetrics "github.com/operator-framework/operator-sdk/pkg/kube-metrics"
 	"github.com/operator-framework/operator-sdk/pkg/leader"
@@ -46,26 +48,11 @@ func printVersion() {
 }
 
 func main() {
-	// Add the zap logger flag set to the CLI. The flag set must
-	// be added before calling pflag.Parse().
+	// Add the zap logger flag set to the CLI.
 	pflag.CommandLine.AddFlagSet(zap.FlagSet())
-
-	// Add flags registered by imported packages (e.g. glog and
-	// controller-runtime)
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
-
 	pflag.Parse()
-
-	// Use a zap logr.Logger implementation. If none of the zap
-	// flags are configured (or if the zap flag set is not being
-	// used), this defaults to a production zap logger.
-	//
-	// The logger instantiated here can be changed to any logger
-	// implementing the logr.Logger interface. This logger will
-	// be propagated through the whole operator, generating
-	// uniform and structured logs.
 	logf.SetLogger(zap.Logger())
-
 	printVersion()
 
 	namespace := "" // namespace is set to empty string so we can watch all namespaces
@@ -104,9 +91,20 @@ func main() {
 		os.Exit(1)
 	}
 
-	//TODO register only the required Kinds, not all the apis
-	// Adding the openshift v1 api
-	if err := openshiftv1.AddToScheme(mgr.GetScheme()); err != nil {
+	// Adding the apps v1 api
+	if err := appsv1.AddToScheme(mgr.GetScheme()); err != nil {
+		log.Error(err, "")
+		os.Exit(1)
+	}
+
+	// Adding the imagev1
+	if err := imagev1.AddToScheme(mgr.GetScheme()); err != nil {
+		log.Error(err, "")
+		os.Exit(1)
+	}
+
+	// Adding the routev1
+	if err := routev1.AddToScheme(mgr.GetScheme()); err != nil {
 		log.Error(err, "")
 		os.Exit(1)
 	}
