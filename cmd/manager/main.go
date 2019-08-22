@@ -127,7 +127,7 @@ func registerComponentOrExit(mgr manager.Manager, f func(*k8sruntime.Scheme) err
 		log.Error(err, "")
 		os.Exit(1)
 	}
-
+	log.Info(fmt.Sprintf("Component registered: %v", f))
 }
 
 // Register a controller to a manager
@@ -137,6 +137,7 @@ func setupControllerOrExit(mgr manager.Manager, f func(manager.Manager) error) {
 		log.Error(err, "")
 		os.Exit(1)
 	}
+	log.Info(fmt.Sprintf("Controller initialized: %v", f))
 }
 
 func initializeMetricsServer(cfg *rest.Config, ctx context.Context, namespace string) {

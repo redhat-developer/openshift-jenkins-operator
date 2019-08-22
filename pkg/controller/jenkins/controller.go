@@ -59,7 +59,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	}
 
 	// Watch for changes to secondary resource ImageStream and requeue the owner Jenkins
-	err = c.Watch(&source.Kind{Type: &imagev1.ImageStreamTag{}}, &handler.EnqueueRequestForOwner{
+	err = c.Watch(&source.Kind{Type: &imagev1.ImageStream{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
 		OwnerType:    &jenkinsv1alpha1.Jenkins{},
 	})
@@ -76,7 +76,6 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 		return err
 	}
 
-
 	// Watch for changes to secondary resource Route and requeue the owner Jenkins
 	err = c.Watch(&source.Kind{Type: &routev1.Route{}}, &handler.EnqueueRequestForOwner{
 		IsController: true,
@@ -85,9 +84,6 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	if err != nil {
 		return err
 	}
-
-
-
 	return nil
 }
 
