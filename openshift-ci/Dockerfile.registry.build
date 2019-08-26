@@ -1,0 +1,15 @@
+FROM quay.io/openshift/origin-operator-registry:latest
+
+ARG version=0.0.17
+RUN mkdir -p manifests/openshift-jenkins-operator/${version}
+COPY manifests/openshift-jenkins-operator.package.yaml manifests/openshift-jenkins-operator/
+COPY manifests/openshift-jenkins-operator*.crd.yaml manifests/openshift-jenkins-operator/${version}/
+COPY manifests/openshift-jenkins-operator*.clusterserviceversion.yaml manifests/openshift-jenkins-operator/${version}/
+
+USER root
+RUN sed -e "s,quay.io/redhat-developer/app-binding-operator:v${version},registry.svc.ci.openshift.org/${OPENSHIFT_BUILD_NAMESPACE}/stable:openshift-jenkins-operator," -i manifests/openshift-jenkins-operator/${version}/openshift-jenkins-operator.v${version}.clusterserviceversion.yaml
+RUN initializer
+
+USER 1001
+EXPOSE 50051
+CMD ["registry-server", "--termination-log=log.txt"]
