@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"reflect"
 	"runtime"
 
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
@@ -127,7 +128,7 @@ func registerComponentOrExit(mgr manager.Manager, f func(*k8sruntime.Scheme) err
 		log.Error(err, "")
 		os.Exit(1)
 	}
-	log.Info(fmt.Sprintf("Component registered: %v", f))
+	log.Info(fmt.Sprintf("Component registered: %v", reflect.ValueOf(f)))
 }
 
 // Register a controller to a manager
@@ -137,7 +138,7 @@ func setupControllerOrExit(mgr manager.Manager, f func(manager.Manager) error) {
 		log.Error(err, "")
 		os.Exit(1)
 	}
-	log.Info(fmt.Sprintf("Controller initialized: %v", f))
+	log.Info(fmt.Sprintf("Controller initialized: %+v", reflect.ValueOf(f)))
 }
 
 func initializeMetricsServer(cfg *rest.Config, ctx context.Context, namespace string) {
@@ -191,3 +192,4 @@ func serveCRMetrics(cfg *rest.Config) error {
 	}
 	return nil
 }
+
