@@ -11,8 +11,8 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/client-go/rest"
 
-	"github.com/akram/openshift-jenkins-operator/pkg/apis"
-	jenkinscontroller "github.com/akram/openshift-jenkins-operator/pkg/controller"
+	"github.com/redhat-developer/openshift-jenkins-operator/pkg/apis"
+	jenkinscontroller "github.com/redhat-developer/openshift-jenkins-operator/pkg/controller"
 
 	appsv1 "github.com/openshift/api/apps/v1"
 	imagev1 "github.com/openshift/api/image/v1"
@@ -27,6 +27,7 @@ import (
 	"github.com/spf13/pflag"
 	v1 "k8s.io/api/core/v1"
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
+
 	//	k8smanager "sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -192,4 +193,3 @@ func serveCRMetrics(cfg *rest.Config) error {
 	}
 	return nil
 }
-

@@ -11,9 +11,9 @@ import (
 
 func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenAPIDefinition {
 	return map[string]common.OpenAPIDefinition{
-		"github.com/akram/openshift-jenkins-operator/pkg/apis/jenkins/v1alpha1.Jenkins":       schema_pkg_apis_jenkins_v1alpha1_Jenkins(ref),
-		"github.com/akram/openshift-jenkins-operator/pkg/apis/jenkins/v1alpha1.JenkinsSpec":   schema_pkg_apis_jenkins_v1alpha1_JenkinsSpec(ref),
-		"github.com/akram/openshift-jenkins-operator/pkg/apis/jenkins/v1alpha1.JenkinsStatus": schema_pkg_apis_jenkins_v1alpha1_JenkinsStatus(ref),
+		"github.com/redhat-developer/openshift-jenkins-operator/pkg/apis/jenkins/v1alpha1.Jenkins":       schema_pkg_apis_jenkins_v1alpha1_Jenkins(ref),
+		"github.com/redhat-developer/openshift-jenkins-operator/pkg/apis/jenkins/v1alpha1.JenkinsSpec":   schema_pkg_apis_jenkins_v1alpha1_JenkinsSpec(ref),
+		"github.com/redhat-developer/openshift-jenkins-operator/pkg/apis/jenkins/v1alpha1.JenkinsStatus": schema_pkg_apis_jenkins_v1alpha1_JenkinsStatus(ref),
 	}
 }
 
@@ -44,19 +44,19 @@ func schema_pkg_apis_jenkins_v1alpha1_Jenkins(ref common.ReferenceCallback) comm
 					},
 					"spec": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/akram/openshift-jenkins-operator/pkg/apis/jenkins/v1alpha1.JenkinsSpec"),
+							Ref: ref("github.com/redhat-developer/openshift-jenkins-operator/pkg/apis/jenkins/v1alpha1.JenkinsSpec"),
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
-							Ref: ref("github.com/akram/openshift-jenkins-operator/pkg/apis/jenkins/v1alpha1.JenkinsStatus"),
+							Ref: ref("github.com/redhat-developer/openshift-jenkins-operator/pkg/apis/jenkins/v1alpha1.JenkinsStatus"),
 						},
 					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/akram/openshift-jenkins-operator/pkg/apis/jenkins/v1alpha1.JenkinsSpec", "github.com/akram/openshift-jenkins-operator/pkg/apis/jenkins/v1alpha1.JenkinsStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
+			"github.com/redhat-developer/openshift-jenkins-operator/pkg/apis/jenkins/v1alpha1.JenkinsSpec", "github.com/redhat-developer/openshift-jenkins-operator/pkg/apis/jenkins/v1alpha1.JenkinsStatus", "k8s.io/apimachinery/pkg/apis/meta/v1.ObjectMeta"},
 	}
 }
 

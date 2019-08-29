@@ -1,4 +1,4 @@
-module github.com/akram/openshift-jenkins-operator
+module github.com/redhat-developer/openshift-jenkins-operator
 
 require (
 	github.com/NYTimes/gziphandler v1.0.1 // indirect

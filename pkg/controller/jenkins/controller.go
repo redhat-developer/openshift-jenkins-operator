@@ -3,10 +3,10 @@ package jenkins
 import (
 	"context"
 
-	jenkinsv1alpha1 "github.com/akram/openshift-jenkins-operator/pkg/apis/jenkins/v1alpha1"
 	appsv1 "github.com/openshift/api/apps/v1"
 	imagev1 "github.com/openshift/api/image/v1"
 	routev1 "github.com/openshift/api/route/v1"
+	jenkinsv1alpha1 "github.com/redhat-developer/openshift-jenkins-operator/pkg/apis/jenkins/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -156,7 +156,7 @@ func (r *ReconcileJenkins) Reconcile(request reconcile.Request) (reconcile.Resul
 func newDeploymentConfigForCR(cr *jenkinsv1alpha1.Jenkins) *appsv1.DeploymentConfig {
 	labels := map[string]string{
 		"app":  cr.Name,
-		"test": "akram",
+		"test": "redhat-developer",
 	}
 	dc := &appsv1.DeploymentConfig{
 		ObjectMeta: metav1.ObjectMeta{

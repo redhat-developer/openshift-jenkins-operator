@@ -3,6 +3,9 @@ build/_output
 build/_test
 build/bin
 
+# idea 
+.idea/
+
 # operator-courier
 tmp/
 

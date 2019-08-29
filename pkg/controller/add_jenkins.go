@@ -1,7 +1,7 @@
 package controller
 
 import (
-	"github.com/akram/openshift-jenkins-operator/pkg/controller/jenkins"
+	"github.com/redhat-developer/openshift-jenkins-operator/pkg/controller/jenkins"
 )
 
 func init() {

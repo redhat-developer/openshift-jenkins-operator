@@ -1,7 +1,7 @@
 package apis
 
 import (
-	"github.com/akram/openshift-jenkins-operator/pkg/apis/jenkins/v1alpha1"
+	"github.com/redhat-developer/openshift-jenkins-operator/pkg/apis/jenkins/v1alpha1"
 )
 
 func init() {
