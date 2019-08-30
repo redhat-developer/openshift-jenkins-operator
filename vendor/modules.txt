@@ -122,7 +122,7 @@ github.com/openshift/api/image/v1
 github.com/openshift/api/route/v1
 github.com/openshift/api/image/docker10
 github.com/openshift/api/image/dockerpre012
-# github.com/operator-framework/operator-sdk v0.10.1-0.20190812222044-9542d611c71b
+# github.com/operator-framework/operator-sdk v0.10.0
 github.com/operator-framework/operator-sdk/pkg/k8sutil
 github.com/operator-framework/operator-sdk/pkg/kube-metrics
 github.com/operator-framework/operator-sdk/pkg/leader
