@@ -25,6 +25,7 @@ import (
 	"github.com/operator-framework/operator-sdk/pkg/restmapper"
 	sdkVersion "github.com/operator-framework/operator-sdk/version"
 	"github.com/spf13/pflag"
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
 
@@ -60,10 +61,11 @@ func main() {
 
 	log.Info("Registering Components.")
 	registerComponentOrExit(mgr, apis.AddToScheme)    // Setup Scheme for all resources
-	registerComponentOrExit(mgr, appsv1.AddToScheme)  // Adding the apps v1 api
-	registerComponentOrExit(mgr, imagev1.AddToScheme) // Adding the imagev1
-	registerComponentOrExit(mgr, routev1.AddToScheme) // Adding the routev1
+	registerComponentOrExit(mgr, appsv1.AddToScheme)  // Adding the appsv1 api
+	registerComponentOrExit(mgr, imagev1.AddToScheme) // Adding the imagev1 api
+	registerComponentOrExit(mgr, routev1.AddToScheme) // Adding the routev1 api
 	registerComponentOrExit(mgr, apis.AddToScheme)    // Setup Scheme for all resources
+	registerComponentOrExit(mgr, corev1.AddToScheme)  // Adding the corev1 api
 	log.Info("All components registered successfully.")
 
 	// Setup all Controllers , add here other calls to your controllers

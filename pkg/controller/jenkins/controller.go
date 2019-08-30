@@ -3,6 +3,8 @@ package jenkins
 import (
 	"context"
 
+	"github.com/go-logr/logr"
+
 	appsv1 "github.com/openshift/api/apps/v1"
 	imagev1 "github.com/openshift/api/image/v1"
 	routev1 "github.com/openshift/api/route/v1"
@@ -12,6 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -96,6 +99,8 @@ type ReconcileJenkins struct {
 	// that reads objects from the cache and writes to the apiserver
 	client client.Client
 	scheme *runtime.Scheme
+	logger logr.Logger
+	result reconcile.Result
 }
 
 // Reconcile reads that state of the cluster for a Jenkins object and makes changes based on the state read
@@ -106,8 +111,9 @@ type ReconcileJenkins struct {
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (r *ReconcileJenkins) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
-	reqLogger.Info("Reconciling Jenkins")
+	r.result = reconcile.Result{}
+	r.logger = log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
+	r.logger.Info("Reconciling Jenkins")
 
 	// Fetch the Jenkins instance
 	instance := &jenkinsv1alpha1.Jenkins{}
@@ -117,7 +123,7 @@ func (r *ReconcileJenkins) Reconcile(request reconcile.Request) (reconcile.Resul
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
 			// Return and don't requeue
-			return reconcile.Result{}, nil
+			return r.result, nil
 		}
 		// Error reading the object - requeue the request.
 		return reconcile.Result{}, err
@@ -126,6 +132,28 @@ func (r *ReconcileJenkins) Reconcile(request reconcile.Request) (reconcile.Resul
 	// Define a new Pod object
 	dc := newDeploymentConfigForCR(instance)
 
+	// Define Jenkins Services
+	jenkinsPort := corev1.ServicePort{
+		Name:     "web",
+		Port:     80,
+		Protocol: "TCP",
+		TargetPort: intstr.IntOrString{
+			IntVal: 8080,
+			StrVal: "8080",
+		},
+	}
+	jenkinsJNLPPort := corev1.ServicePort{
+		Name:     "agent",
+		Port:     50000,
+		Protocol: "TCP",
+		TargetPort: intstr.IntOrString{
+			IntVal: 50000,
+			StrVal: "50000",
+		},
+	}
+	jenkinsSvc := newJenkinsServiceForCR(instance, "jenkins", jenkinsPort)              // jenkins service
+	jenkinsJNLPSvc := newJenkinsServiceForCR(instance, "jenkins-jnlp", jenkinsJNLPPort) // jenknis jnlp service
+
 	// Set Jenkins instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, dc, r.scheme); err != nil {
 		return reconcile.Result{}, err
@@ -133,23 +161,36 @@ func (r *ReconcileJenkins) Reconcile(request reconcile.Request) (reconcile.Resul
 
 	// Check if this DC already exists
 	found := &appsv1.DeploymentConfig{}
-	err = r.client.Get(context.TODO(), types.NamespacedName{Name: dc.Name, Namespace: dc.Namespace}, found)
-	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Info("Creating a new DeploymentConfig", "DeploymentConfig.Namespace", dc.Namespace, "DeploymentConfig.Name", dc.Name)
-		err = r.client.Create(context.TODO(), dc)
-		if err != nil {
-			return reconcile.Result{}, err
-		}
+	namespacedName := types.NamespacedName{
+		Namespace: found.Namespace,
+		Name:      found.Name,
+	}
+	err = r.createResourceIfNotPresent(namespacedName, dc)
+	err = r.createResourceIfNotPresent(namespacedName, jenkinsSvc)
+	err = r.createResourceIfNotPresent(namespacedName, jenkinsJNLPSvc)
 
-		// DC created successfully - don't requeue
-		return reconcile.Result{}, nil
-	} else if err != nil {
-		return reconcile.Result{}, err
+	if err != nil {
+		return r.result, err
 	}
 
-	// DC already exists - don't requeue
-	reqLogger.Info("Skip reconcile: DeploymentConfig already exists", "DeploymentConfig.Namespace", found.Namespace, "DeploymentConfig.Name", found.Name)
-	return reconcile.Result{}, nil
+	return r.result, nil
+}
+
+func (r *ReconcileJenkins) createResourceIfNotPresent(key types.NamespacedName, resource runtime.Object) error {
+	err := r.client.Get(context.TODO(), key, resource)
+	if err != nil && errors.IsNotFound(err) {
+		r.logger.Info("Creating a new DeploymentConfig", "DeploymentConfig.Namespace", key.Namespace, "DeploymentConfig.Name", key.Name)
+		err = r.client.Create(context.TODO(), resource)
+		if err != nil {
+			return err
+		}
+
+		// Resource created successfully - don't requeue
+		return nil
+	} else if err != nil {
+		return err
+	}
+	return nil
 }
 
 // newDeploymentConfigForCR returns a jenkins DeploymentConfig with the same name/namespace as the cr
@@ -182,5 +223,30 @@ func newDeploymentConfigForCR(cr *jenkinsv1alpha1.Jenkins) *appsv1.DeploymentCon
 			},
 		},
 	}
+
 	return dc
+}
+
+func newJenkinsServiceForCR(cr *jenkinsv1alpha1.Jenkins, name string, port corev1.ServicePort) *corev1.Service {
+	labels := map[string]string{
+		"app":  cr.Name,
+		"test": "redhat-developer",
+	}
+
+	ports := []corev1.ServicePort{port}
+
+	svc := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: cr.Namespace,
+			Labels:    labels,
+		},
+		Spec: corev1.ServiceSpec{
+			Ports:    ports,
+			Selector: labels,
+			Type:     "ClusterIP",
+		},
+	}
+
+	return svc
 }
