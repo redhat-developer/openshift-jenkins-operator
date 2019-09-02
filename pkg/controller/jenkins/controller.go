@@ -2,8 +2,10 @@ package jenkins
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/go-logr/logr"
+	gerrors "github.com/pkg/errors"
 
 	appsv1 "github.com/openshift/api/apps/v1"
 	imagev1 "github.com/openshift/api/image/v1"
@@ -27,6 +29,16 @@ import (
 
 var log = logf.Log.WithName("jenkins/controller.go")
 
+const (
+	// NamespaceDefault means the object is in the default namespace which is applied when not specified by clients
+	JenkinsControllerName  = "jenkins-controller"
+	JenkinsWebPortName     = "web"
+	JenkinsWebPortProtocol = corev1.ProtocolTCP
+	JenkinsWebPort         = 80
+	JenkinsWebPortAsInt    = 8080
+	JenkinsWebPortAsStr    = "8080"
+)
+
 // Add creates a new Jenkins Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
 func Add(mgr manager.Manager) error {
@@ -40,53 +52,28 @@ func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
 func add(mgr manager.Manager, r reconcile.Reconciler) error {
+	//	errors := gerrors.New("Initialisation errors")
+
 	// Create a new controller
-	c, err := controller.New("jenkins-controller", mgr, controller.Options{Reconciler: r})
+	c, err := controller.New(JenkinsControllerName, mgr, controller.Options{Reconciler: r})
 	if err != nil {
 		return err
 	}
 
+	ownerRef := &jenkinsv1alpha1.Jenkins{}
+	handler := &handler.EnqueueRequestForObject{}
 	// Watch for changes to primary resource Jenkins
-	err = c.Watch(&source.Kind{Type: &jenkinsv1alpha1.Jenkins{}}, &handler.EnqueueRequestForObject{})
+	err = c.Watch(&source.Kind{Type: ownerRef}, handler)
 	if err != nil {
 		return err
 	}
+	watchResourceOrStackError(c, ownerRef, nil)
+	watchResourceOrStackError(c, &appsv1.DeploymentConfig{}, ownerRef) // Watch DeploymentConfig and requeue the owner Jenkins
+	watchResourceOrStackError(c, &imagev1.ImageStream{}, ownerRef)
+	watchResourceOrStackError(c, &corev1.ServiceAccount{}, ownerRef)
+	watchResourceOrStackError(c, &routev1.Route{}, ownerRef)
 
-	// Watch for changes to secondary resource DeploymentConfig and requeue the owner Jenkins
-	err = c.Watch(&source.Kind{Type: &appsv1.DeploymentConfig{}}, &handler.EnqueueRequestForOwner{
-		IsController: true,
-		OwnerType:    &jenkinsv1alpha1.Jenkins{},
-	})
-	if err != nil {
-		return err
-	}
-
-	// Watch for changes to secondary resource ImageStream and requeue the owner Jenkins
-	err = c.Watch(&source.Kind{Type: &imagev1.ImageStream{}}, &handler.EnqueueRequestForOwner{
-		IsController: true,
-		OwnerType:    &jenkinsv1alpha1.Jenkins{},
-	})
-	if err != nil {
-		return err
-	}
-
-	// Watch for changes to secondary resource ServiceAccount and requeue the owner Jenkins
-	err = c.Watch(&source.Kind{Type: &corev1.ServiceAccount{}}, &handler.EnqueueRequestForOwner{
-		IsController: true,
-		OwnerType:    &jenkinsv1alpha1.Jenkins{},
-	})
-	if err != nil {
-		return err
-	}
-
-	// Watch for changes to secondary resource Route and requeue the owner Jenkins
-	err = c.Watch(&source.Kind{Type: &routev1.Route{}}, &handler.EnqueueRequestForOwner{
-		IsController: true,
-		OwnerType:    &jenkinsv1alpha1.Jenkins{},
-	})
-	if err != nil {
-		return err
-	}
+	// TODO check if errors is empty or not
 	return nil
 }
 
@@ -101,6 +88,21 @@ type ReconcileJenkins struct {
 	scheme *runtime.Scheme
 	logger logr.Logger
 	result reconcile.Result
+}
+
+// Setup Scheme for a resources
+func watchResourceOrStackError(controller controller.Controller, resourceType runtime.Object, ownerType runtime.Object) error {
+	// Watch for changes to  resource  and requeue the owner to owner
+	err := controller.Watch(&source.Kind{Type: resourceType}, &handler.EnqueueRequestForOwner{
+		IsController: true,
+		OwnerType:    ownerType,
+	})
+	if err != nil {
+		gerrors.Wrap(err, "Cannot watch component")
+	} else {
+		log.Info(fmt.Sprintf("Component %v of parent type %v is now being watched", resourceType, ownerType))
+	}
+	return err
 }
 
 // Reconcile reads that state of the cluster for a Jenkins object and makes changes based on the state read
@@ -134,12 +136,12 @@ func (r *ReconcileJenkins) Reconcile(request reconcile.Request) (reconcile.Resul
 
 	// Define Jenkins Services
 	jenkinsPort := corev1.ServicePort{
-		Name:     "web",
-		Port:     80,
-		Protocol: "TCP",
+		Name:     JenkinsWebPortName,
+		Port:     JenkinsWebPort,
+		Protocol: JenkinsWebPortProtocol,
 		TargetPort: intstr.IntOrString{
-			IntVal: 8080,
-			StrVal: "8080",
+			IntVal: JenkinsWebPortAsInt,
+			StrVal: JenkinsWebPortAsStr,
 		},
 	}
 	jenkinsJNLPPort := corev1.ServicePort{
@@ -165,14 +167,14 @@ func (r *ReconcileJenkins) Reconcile(request reconcile.Request) (reconcile.Resul
 		Namespace: found.Namespace,
 		Name:      found.Name,
 	}
+
+	//TODO implements error checking
 	err = r.createResourceIfNotPresent(namespacedName, dc)
 	err = r.createResourceIfNotPresent(namespacedName, jenkinsSvc)
 	err = r.createResourceIfNotPresent(namespacedName, jenkinsJNLPSvc)
-
 	if err != nil {
 		return r.result, err
 	}
-
 	return r.result, nil
 }
 
@@ -184,7 +186,6 @@ func (r *ReconcileJenkins) createResourceIfNotPresent(key types.NamespacedName, 
 		if err != nil {
 			return err
 		}
-
 		// Resource created successfully - don't requeue
 		return nil
 	} else if err != nil {
@@ -232,9 +233,7 @@ func newJenkinsServiceForCR(cr *jenkinsv1alpha1.Jenkins, name string, port corev
 		"app":  cr.Name,
 		"test": "redhat-developer",
 	}
-
 	ports := []corev1.ServicePort{port}
-
 	svc := &corev1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -244,9 +243,8 @@ func newJenkinsServiceForCR(cr *jenkinsv1alpha1.Jenkins, name string, port corev
 		Spec: corev1.ServiceSpec{
 			Ports:    ports,
 			Selector: labels,
-			Type:     "ClusterIP",
+			Type:     corev1.ServiceTypeClusterIP,
 		},
 	}
-
 	return svc
 }
