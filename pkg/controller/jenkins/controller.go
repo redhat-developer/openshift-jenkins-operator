@@ -53,6 +53,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	watchResourceOrStackError(c, &appsv1.DeploymentConfig{}, ownerRef) // Watch DeploymentConfig and requeue the owner Jenkins
 	watchResourceOrStackError(c, &imagev1.ImageStream{}, ownerRef)
 	watchResourceOrStackError(c, &corev1.ServiceAccount{}, ownerRef)
+	watchResourceOrStackError(c, &corev1.PersistentVolumeClaim{}, ownerRef)
 	watchResourceOrStackError(c, &routev1.Route{}, ownerRef)
 
 	// TODO check if errors is empty or not
