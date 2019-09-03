@@ -45,6 +45,9 @@ type JenkinsList struct {
 	Items           []Jenkins `json:"items"`
 }
 
+type JenkinsCRDDescriptor struct {
+}
+
 func init() {
 	SchemeBuilder.Register(&Jenkins{}, &JenkinsList{})
 }
