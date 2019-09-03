@@ -7,6 +7,7 @@ import (
 	appsv1 "github.com/openshift/api/apps/v1"
 	jenkinsv1alpha1 "github.com/redhat-developer/openshift-jenkins-operator/pkg/apis/jenkins/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
+	resource "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/dynamic"
 
@@ -39,6 +40,11 @@ const (
 	JenkinsImage           = "image-registry.openshift-image-registry.svc:5000/openshift/jenkins"
 	JenkinsContainerName   = "jenkins"
 	JenkinsAppLabel        = "app"
+
+	JenkinsPvcName         = "jenkins"
+	JenkinsPvcSize         = "1Gi"
+	JenkinsVolumeName      = "jenkins-data"
+	JenkinsVolumeMountPath = "/var/lib/jenkins"
 )
 
 // ReconcileJenkins reconciles a Jenkins object
@@ -87,7 +93,7 @@ func (r *JenkinsReconciler) Reconcile(request reconcile.Request) (reconcile.Resu
 	}
 
 	// Define a new Pod object
-	dc := newDeploymentConfigForCR(instance)
+	dc := newDeploymentConfig(instance)
 
 	// Define Jenkins Services
 	jenkinsPort := corev1.ServicePort{
@@ -108,8 +114,9 @@ func (r *JenkinsReconciler) Reconcile(request reconcile.Request) (reconcile.Resu
 			StrVal: JenkinsAgentPortAsStr,
 		},
 	}
-	jenkinsSvc := newJenkinsServiceForCR(instance, JenkinsServiceName, jenkinsPort)             // jenkins service
-	jenkinsJNLPSvc := newJenkinsServiceForCR(instance, JenkinsJNLPServiceName, jenkinsJNLPPort) // jenknis jnlp service
+	jenkinsSvc := newJenkinsService(instance, JenkinsServiceName, jenkinsPort)             // jenkins service
+	jenkinsJNLPSvc := newJenkinsService(instance, JenkinsJNLPServiceName, jenkinsJNLPPort) // jenknis jnlp service
+	jenkinsPvc := newJenkinsPvc(instance, JenkinsPvcName)                                  // jenknis jnlp service
 
 	// Set Jenkins instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, dc, r.scheme); err != nil {
@@ -127,6 +134,8 @@ func (r *JenkinsReconciler) Reconcile(request reconcile.Request) (reconcile.Resu
 	err = r.createResourceIfNotPresent(namespacedName, dc)
 	err = r.createResourceIfNotPresent(namespacedName, jenkinsSvc)
 	err = r.createResourceIfNotPresent(namespacedName, jenkinsJNLPSvc)
+	err = r.createResourceIfNotPresent(namespacedName, jenkinsPvc)
+
 	if err != nil {
 		return r.result, err
 	}
@@ -136,9 +145,10 @@ func (r *JenkinsReconciler) Reconcile(request reconcile.Request) (reconcile.Resu
 func (r *JenkinsReconciler) createResourceIfNotPresent(key types.NamespacedName, resource runtime.Object) error {
 	err := r.client.Get(context.TODO(), key, resource)
 	if err != nil && errors.IsNotFound(err) {
-		r.logger.Info("Creating a new DeploymentConfig", "DeploymentConfig.Namespace", key.Namespace, "DeploymentConfig.Name", key.Name)
+		r.logger.Info("Creating a new Object", "in Namespace", key.Namespace, "Resource.Name", resource)
 		err = r.client.Create(context.TODO(), resource)
 		if err != nil {
+			r.logger.Info("Error while creating an object", "Object.Namespace", key.Namespace, "Object.Name", resource, "Error:", err)
 			return err
 		}
 		// Resource created successfully - don't requeue
@@ -150,7 +160,7 @@ func (r *JenkinsReconciler) createResourceIfNotPresent(key types.NamespacedName,
 }
 
 // newDeploymentConfigForCR returns a jenkins DeploymentConfig with the same name/namespace as the cr
-func newDeploymentConfigForCR(cr *jenkinsv1alpha1.Jenkins) *appsv1.DeploymentConfig {
+func newDeploymentConfig(cr *jenkinsv1alpha1.Jenkins) *appsv1.DeploymentConfig {
 	labels := map[string]string{
 		"app":  cr.Name,
 		"test": "redhat-developer",
@@ -173,6 +183,18 @@ func newDeploymentConfigForCR(cr *jenkinsv1alpha1.Jenkins) *appsv1.DeploymentCon
 						{
 							Image: JenkinsImage,
 							Name:  JenkinsContainerName,
+							VolumeMounts: []corev1.VolumeMount{
+								{Name: JenkinsVolumeName, MountPath: JenkinsVolumeMountPath},
+							},
+						},
+					},
+					Volumes: []corev1.Volume{
+						{
+							Name: JenkinsVolumeName,
+							VolumeSource: corev1.VolumeSource{
+								PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
+									ClaimName: JenkinsPvcName},
+							},
 						},
 					},
 				},
@@ -183,8 +205,8 @@ func newDeploymentConfigForCR(cr *jenkinsv1alpha1.Jenkins) *appsv1.DeploymentCon
 	return dc
 }
 
-// newJenkinsServiceforCR templates a new Service for Jenkins
-func newJenkinsServiceForCR(cr *jenkinsv1alpha1.Jenkins, name string, port corev1.ServicePort) *corev1.Service {
+// newJenkinsServicefor templates a new Service for Jenkins
+func newJenkinsService(cr *jenkinsv1alpha1.Jenkins, name string, port corev1.ServicePort) *corev1.Service {
 	labels := map[string]string{JenkinsAppLabel: cr.Name}
 	ports := []corev1.ServicePort{port}
 	svc := &corev1.Service{ObjectMeta: metav1.ObjectMeta{
@@ -197,6 +219,24 @@ func newJenkinsServiceForCR(cr *jenkinsv1alpha1.Jenkins, name string, port corev
 		Type:     corev1.ServiceTypeClusterIP},
 	}
 	return svc
+}
+
+func newJenkinsPvc(cr *jenkinsv1alpha1.Jenkins, name string) *corev1.PersistentVolumeClaim {
+	accessModes := []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}
+	var quantity = resource.MustParse(JenkinsPvcSize)
+	resources := corev1.ResourceRequirements{Requests: corev1.ResourceList{corev1.ResourceStorage: quantity}}
+	pvc := &corev1.PersistentVolumeClaim{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: cr.Namespace,
+		},
+		Spec: corev1.PersistentVolumeClaimSpec{
+			AccessModes: accessModes,
+			Resources:   resources,
+		},
+	}
+
+	return pvc
 }
 
 // Reconcile reads that state of the cluster for a Jenkins object and makes changes based on the state read
