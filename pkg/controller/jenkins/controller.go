@@ -23,12 +23,7 @@ var log = logf.Log.WithName("jenkins/controller.go")
 
 const (
 	// NamespaceDefault means the object is in the default namespace which is applied when not specified by clients
-	JenkinsControllerName  = "jenkins-controller"
-	JenkinsWebPortName     = "web"
-	JenkinsWebPortProtocol = corev1.ProtocolTCP
-	JenkinsWebPort         = 80
-	JenkinsWebPortAsInt    = 8080
-	JenkinsWebPortAsStr    = "8080"
+	JenkinsControllerName = "jenkins-controller"
 )
 
 // Add creates a new Jenkins Controller and adds it to the Manager. The Manager will set fields on the Controller

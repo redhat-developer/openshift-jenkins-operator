@@ -19,6 +19,27 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
+const (
+	// NamespaceDefault means the object is in the default namespace which is applied when not specified by clients
+	JenkinsWebPortName     = "web"
+	JenkinsWebPortProtocol = corev1.ProtocolTCP
+	JenkinsWebPort         = 80
+	JenkinsWebPortAsInt    = 8080
+	JenkinsWebPortAsStr    = "8080"
+
+	JenkinsAgentPortName     = "agent"
+	JenkinsAgentPortProtocol = corev1.ProtocolTCP
+	JenkinsAgentPort         = 50000
+	JenkinsAgentPortAsInt    = 50000
+	JenkinsAgentPortAsStr    = "50000"
+
+	JenkinsServiceName     = "jenkins"
+	JenkinsJNLPServiceName = "jenkins-jnlp"
+	JenkinsImage           = "image-registry.openshift-image-registry.svc:5000/openshift/jenkins"
+	JenkinsContainerName   = "jenkins"
+	JenkinsAppLabel        = "app"
+)
+
 // ReconcileJenkins reconciles a Jenkins object
 type ReconcileJenkins struct {
 	// This client, initialized using mgr.Client() above, is a split client
@@ -37,6 +58,13 @@ func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 	return &ReconcileJenkins{client: mgr.GetClient(), scheme: mgr.GetScheme()}
 }
 
+// Reconcile reads that state of the cluster for a Jenkins object and makes changes based on the state read
+// and what is in the Jenkins.Spec
+// TODO(user): Modify this Reconcile function to implement your Controller logic.  This example creates
+// a Pod as an example
+// Note:
+// The Controller will requeue the Request to be processed again if the returned error is non-nil or
+// Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (r *ReconcileJenkins) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	r.result = reconcile.Result{}
 	r.logger = log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
@@ -70,16 +98,16 @@ func (r *ReconcileJenkins) Reconcile(request reconcile.Request) (reconcile.Resul
 		},
 	}
 	jenkinsJNLPPort := corev1.ServicePort{
-		Name:     "agent",
-		Port:     50000,
-		Protocol: "TCP",
+		Name:     JenkinsAgentPortName,
+		Port:     JenkinsAgentPort,
+		Protocol: JenkinsAgentPortProtocol,
 		TargetPort: intstr.IntOrString{
-			IntVal: 50000,
-			StrVal: "50000",
+			IntVal: JenkinsAgentPort,
+			StrVal: JenkinsAgentPortAsStr,
 		},
 	}
-	jenkinsSvc := newJenkinsServiceForCR(instance, "jenkins", jenkinsPort)              // jenkins service
-	jenkinsJNLPSvc := newJenkinsServiceForCR(instance, "jenkins-jnlp", jenkinsJNLPPort) // jenknis jnlp service
+	jenkinsSvc := newJenkinsServiceForCR(instance, JenkinsServiceName, jenkinsPort)             // jenkins service
+	jenkinsJNLPSvc := newJenkinsServiceForCR(instance, JenkinsJNLPServiceName, jenkinsJNLPPort) // jenknis jnlp service
 
 	// Set Jenkins instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, dc, r.scheme); err != nil {
@@ -141,8 +169,8 @@ func newDeploymentConfigForCR(cr *jenkinsv1alpha1.Jenkins) *appsv1.DeploymentCon
 				Spec: corev1.PodSpec{
 					Containers: []corev1.Container{
 						{
-							Image: "image-registry.openshift-image-registry.svc:5000/openshift/jenkins",
-							Name:  "jenkins",
+							Image: JenkinsImage,
+							Name:  JenkinsContainerName,
 						},
 					},
 				},
@@ -153,23 +181,18 @@ func newDeploymentConfigForCR(cr *jenkinsv1alpha1.Jenkins) *appsv1.DeploymentCon
 	return dc
 }
 
+
 func newJenkinsServiceForCR(cr *jenkinsv1alpha1.Jenkins, name string, port corev1.ServicePort) *corev1.Service {
-	labels := map[string]string{
-		"app":  cr.Name,
-		"test": "redhat-developer",
-	}
+	labels := map[string]string{JenkinsAppLabel: cr.Name}
 	ports := []corev1.ServicePort{port}
-	svc := &corev1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: cr.Namespace,
-			Labels:    labels,
-		},
-		Spec: corev1.ServiceSpec{
-			Ports:    ports,
-			Selector: labels,
-			Type:     corev1.ServiceTypeClusterIP,
-		},
+	svc := &corev1.Service{ObjectMeta: metav1.ObjectMeta{
+		Name:      name,
+		Namespace: cr.Namespace,
+		Labels:    labels,
+	}, Spec: corev1.ServiceSpec{
+		Ports:    ports,
+		Selector: labels,
+		Type:     corev1.ServiceTypeClusterIP},
 	}
 	return svc
 }
