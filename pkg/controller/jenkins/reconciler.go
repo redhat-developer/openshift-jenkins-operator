@@ -23,6 +23,7 @@ import (
 
 const (
 	// NamespaceDefault means the object is in the default namespace which is applied when not specified by clients
+	JenkinsAppLabelName    = "app"
 	JenkinsWebPortName     = "web"
 	JenkinsWebPortProtocol = corev1.ProtocolTCP
 	JenkinsWebPort         = 80
@@ -35,11 +36,12 @@ const (
 	JenkinsAgentPortAsInt    = 50000
 	JenkinsAgentPortAsStr    = "50000"
 
-	JenkinsServiceName     = "jenkins"
-	JenkinsJNLPServiceName = "jenkins-jnlp"
-	JenkinsImage           = "image-registry.openshift-image-registry.svc:5000/openshift/jenkins"
-	JenkinsContainerName   = "jenkins"
-	JenkinsAppLabel        = "app"
+	JenkinsServiceName       = "jenkins"
+	JenkinsJNLPServiceName   = "jenkins-jnlp"
+	JenkinsJnlpServiceSuffix = "-jnlp"
+	JenkinsImage             = "image-registry.openshift-image-registry.svc:5000/openshift/jenkins"
+	JenkinsContainerName     = "jenkins"
+	JenkinsAppLabel          = "app"
 
 	JenkinsPvcName         = "jenkins"
 	JenkinsPvcSize         = "1Gi"
@@ -68,15 +70,14 @@ func newReconciler(mgr manager.Manager) reconcile.Reconciler {
 
 // Reconcile reads that state of the cluster for a Jenkins object and makes changes based on the state read
 // and what is in the Jenkins.Spec
-// TODO(user): Modify this Reconcile function to implement your Controller logic.  This example creates
-// a Pod as an example
-// Note:
 // The Controller will requeue the Request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (r *JenkinsReconciler) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	r.result = reconcile.Result{}
 	r.logger = log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
 	r.logger.Info("Reconciling Jenkins")
+
+	jenkinsInstanceName := request.Name
 
 	// Fetch the Jenkins instance
 	instance := &jenkinsv1alpha1.Jenkins{}
@@ -92,7 +93,7 @@ func (r *JenkinsReconciler) Reconcile(request reconcile.Request) (reconcile.Resu
 		return reconcile.Result{}, err
 	}
 
-	// Define a new Pod object
+	// Define a new DC object
 	dc := newDeploymentConfig(instance)
 
 	// Define Jenkins Services
@@ -114,9 +115,9 @@ func (r *JenkinsReconciler) Reconcile(request reconcile.Request) (reconcile.Resu
 			StrVal: JenkinsAgentPortAsStr,
 		},
 	}
-	jenkinsSvc := newJenkinsService(instance, JenkinsServiceName, jenkinsPort)             // jenkins service
-	jenkinsJNLPSvc := newJenkinsService(instance, JenkinsJNLPServiceName, jenkinsJNLPPort) // jenknis jnlp service
-	jenkinsPvc := newJenkinsPvc(instance, JenkinsPvcName)                                  // jenknis jnlp service
+	jenkinsSvc := newJenkinsService(instance, jenkinsInstanceName, jenkinsPort)                                  // jenkins service
+	jenkinsJNLPSvc := newJenkinsService(instance, jenkinsInstanceName+JenkinsJnlpServiceSuffix, jenkinsJNLPPort) // jenknis jnlp service
+	jenkinsPvc := newJenkinsPvc(instance, jenkinsInstanceName)                                                   // jenknis jnlp service
 
 	// Set Jenkins instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, dc, r.scheme); err != nil {
@@ -162,12 +163,12 @@ func (r *JenkinsReconciler) createResourceIfNotPresent(key types.NamespacedName,
 // newDeploymentConfigForCR returns a jenkins DeploymentConfig with the same name/namespace as the cr
 func newDeploymentConfig(cr *jenkinsv1alpha1.Jenkins) *appsv1.DeploymentConfig {
 	labels := map[string]string{
-		"app":  cr.Name,
-		"test": "redhat-developer",
+		JenkinsAppLabelName: cr.Name,
 	}
+	jenkinsInstanceName := cr.Name
 	dc := &appsv1.DeploymentConfig{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      cr.Name,
+			Name:      jenkinsInstanceName,
 			Namespace: cr.Namespace,
 			Labels:    labels,
 		},
@@ -193,7 +194,7 @@ func newDeploymentConfig(cr *jenkinsv1alpha1.Jenkins) *appsv1.DeploymentConfig {
 							Name: JenkinsVolumeName,
 							VolumeSource: corev1.VolumeSource{
 								PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-									ClaimName: JenkinsPvcName},
+									ClaimName: jenkinsInstanceName},
 							},
 						},
 					},
@@ -238,11 +239,3 @@ func newJenkinsPvc(cr *jenkinsv1alpha1.Jenkins, name string) *corev1.PersistentV
 
 	return pvc
 }
-
-// Reconcile reads that state of the cluster for a Jenkins object and makes changes based on the state read
-// and what is in the Jenkins.Spec
-// TODO(user): Modify this Reconcile function to implement your Controller logic.  This example creates
-// a Pod as an example
-// Note:
-// The Controller will requeue the Request to be processed again if the returned error is non-nil or
-// Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
