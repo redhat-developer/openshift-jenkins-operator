@@ -5,8 +5,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func jenkinsCRMock(
-	ns, name, resourceRef string, matchLabels map[string]string) *jenkinsv1alpha1.Jenkins {
+func JenkinsCRMock(
+	ns, name string) *jenkinsv1alpha1.Jenkins {
 	return &jenkinsv1alpha1.Jenkins{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: ns,

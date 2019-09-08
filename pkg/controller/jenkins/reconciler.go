@@ -117,7 +117,7 @@ func (r *JenkinsReconciler) Reconcile(request reconcile.Request) (reconcile.Resu
 	}
 	jenkinsSvc := newJenkinsService(instance, jenkinsInstanceName, jenkinsPort)                                  // jenkins service
 	jenkinsJNLPSvc := newJenkinsService(instance, jenkinsInstanceName+JenkinsJnlpServiceSuffix, jenkinsJNLPPort) // jenknis jnlp service
-	jenkinsPvc := newJenkinsPvc(instance, jenkinsInstanceName)                                                   // jenknis jnlp service
+	jenkinsPvc := newJenkinsPvc(instance, jenkinsInstanceName)                                                   // jenknis pvc
 
 	// Set Jenkins instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, dc, r.scheme); err != nil {
