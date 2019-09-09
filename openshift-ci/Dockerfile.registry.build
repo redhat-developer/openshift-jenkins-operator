@@ -1,6 +1,6 @@
 FROM quay.io/openshift/origin-operator-registry:latest
 
-ARG version=0.0.17
+ARG version=0.0.1
 RUN mkdir -p manifests/openshift-jenkins-operator/${version}
 COPY manifests/openshift-jenkins-operator.package.yaml manifests/openshift-jenkins-operator/
 COPY manifests/openshift-jenkins-operator*.crd.yaml manifests/openshift-jenkins-operator/${version}/
