@@ -1,7 +1,6 @@
 package jenkins
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -9,6 +8,8 @@ import (
 
 	"github.com/redhat-developer/openshift-jenkins-operator/test/mocks"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
+	resource "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -74,15 +75,62 @@ func TestNewJenkinsService(t *testing.T) {
 			Status: corev1.ServiceStatus{LoadBalancer: corev1.LoadBalancerStatus{Ingress: []corev1.LoadBalancerIngress(nil)}},
 		}
 
+		// Testing the things that are bound to match.
 		svc := newJenkinsService(mocks.JenkinsCRMock(test_ns, test_name), "test", jenkinsPort)
-		fmt.Printf("%#v \n", svc)
-
-		if !reflect.DeepEqual(svc.Spec, checkSvc.Spec) {
-			t.FailNow()
+		if !(reflect.DeepEqual(svc.Spec, checkSvc.Spec) &&
+			reflect.DeepEqual(svc.ObjectMeta.Labels, checkSvc.ObjectMeta.Labels) &&
+			reflect.DeepEqual(svc.ObjectMeta.Name, checkSvc.ObjectMeta.Name) &&
+			reflect.DeepEqual(svc.ObjectMeta.Namespace, checkSvc.ObjectMeta.Namespace) &&
+			reflect.DeepEqual(svc.Status, checkSvc.Status)) {
+			t.Fail()
 		}
+
 	})
 }
 
 func TestNewJenkinsPvc(t *testing.T) {
-	t.FailNow()
+	t.Run("TestNewJenkinsPvc", func(t *testing.T) {
+
+		checkPvc := corev1.PersistentVolumeClaim{
+			TypeMeta: metav1.TypeMeta{Kind: "", APIVersion: ""},
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "test", GenerateName: "",
+				Namespace:                  "test",
+				SelfLink:                   "",
+				UID:                        "",
+				ResourceVersion:            "",
+				Generation:                 0,
+				CreationTimestamp:          metav1.Time{Time: time.Time{}},
+				DeletionTimestamp:          (*metav1.Time)(nil),
+				DeletionGracePeriodSeconds: (*int64)(nil),
+				Labels:                     map[string]string(nil),
+				Annotations:                map[string]string(nil),
+				OwnerReferences:            []metav1.OwnerReference(nil),
+				Initializers:               (*metav1.Initializers)(nil), Finalizers: []string(nil), ClusterName: ""},
+			Spec: corev1.PersistentVolumeClaimSpec{
+				AccessModes: []corev1.PersistentVolumeAccessMode{"ReadWriteOnce"},
+				Selector:    (*metav1.LabelSelector)(nil),
+				Resources: corev1.ResourceRequirements{
+					Limits:   corev1.ResourceList(nil),
+					Requests: corev1.ResourceList{"storage": resource.Quantity{}},
+				},
+				VolumeName:       "",
+				StorageClassName: (*string)(nil),
+				VolumeMode:       (*corev1.PersistentVolumeMode)(nil),
+				DataSource:       (*corev1.TypedLocalObjectReference)(nil),
+			},
+			Status: corev1.PersistentVolumeClaimStatus{Phase: "", AccessModes: []v1.PersistentVolumeAccessMode(nil), Capacity: v1.ResourceList(nil), Conditions: []v1.PersistentVolumeClaimCondition(nil)},
+		}
+
+		pvc := newJenkinsPvc(mocks.JenkinsCRMock(test_ns, test_name), "test")
+
+		// Testing the things that are bound to match.
+		// TODO : Add Spec checking
+		if !(reflect.DeepEqual(pvc.ObjectMeta.Name, checkPvc.ObjectMeta.Name) &&
+			reflect.DeepEqual(pvc.ObjectMeta.Namespace, checkPvc.ObjectMeta.Namespace) &&
+			reflect.DeepEqual(pvc.Status, checkPvc.Status)) {
+			t.Fail()
+		}
+
+	})
 }
