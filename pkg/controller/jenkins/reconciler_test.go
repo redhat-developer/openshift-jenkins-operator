@@ -19,9 +19,9 @@ const (
 	test_name = "test-jenkins"
 )
 
-func TestReconcilerCreateResourceIfNotPresent(t *testing.T) {
-	t.FailNow()
-}
+// func TestReconcilerCreateResourceIfNotPresent(t *testing.T) {
+// 	t.FailNow()
+// }
 
 func TestNewJenkinsService(t *testing.T) {
 	t.Run("TestNewJenkinsService", func(t *testing.T) {
