@@ -23,10 +23,6 @@ func TestReconcilerCreateResourceIfNotPresent(t *testing.T) {
 	t.FailNow()
 }
 
-func TesNewDeploymentConfig(t *testing.T) {
-
-}
-
 func TestNewJenkinsService(t *testing.T) {
 	t.Run("TestNewJenkinsService", func(t *testing.T) {
 		jenkinsPort := corev1.ServicePort{
@@ -94,7 +90,8 @@ func TestNewJenkinsPvc(t *testing.T) {
 		checkPvc := corev1.PersistentVolumeClaim{
 			TypeMeta: metav1.TypeMeta{Kind: "", APIVersion: ""},
 			ObjectMeta: metav1.ObjectMeta{
-				Name: "test", GenerateName: "",
+				Name:                       "test",
+				GenerateName:               "",
 				Namespace:                  "test",
 				SelfLink:                   "",
 				UID:                        "",
@@ -132,5 +129,53 @@ func TestNewJenkinsPvc(t *testing.T) {
 			t.Fail()
 		}
 
+	})
+}
+
+func TestNewJenkinsDeploymentConfig(t *testing.T) {
+	t.Run("TestNewJenkinsDc", func(t *testing.T) {
+		checkDc := corev1.PersistentVolumeClaim{
+			TypeMeta: metav1.TypeMeta{Kind: "", APIVersion: ""},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:                       test_name,
+				GenerateName:               "",
+				Namespace:                  test_ns,
+				SelfLink:                   "",
+				UID:                        "",
+				ResourceVersion:            "",
+				Generation:                 0,
+				CreationTimestamp:          metav1.Time{Time: time.Time{}},
+				DeletionTimestamp:          (*metav1.Time)(nil),
+				DeletionGracePeriodSeconds: (*int64)(nil),
+				Labels:                     map[string]string(nil),
+				Annotations:                map[string]string(nil),
+				OwnerReferences:            []metav1.OwnerReference(nil),
+				Initializers:               (*metav1.Initializers)(nil),
+				Finalizers:                 []string(nil), ClusterName: "",
+			},
+			Spec: v1.PersistentVolumeClaimSpec{
+				AccessModes: []v1.PersistentVolumeAccessMode{"ReadWriteOnce"},
+				Selector:    (*metav1.LabelSelector)(nil),
+				Resources: corev1.ResourceRequirements{
+					Limits:   corev1.ResourceList(nil),
+					Requests: corev1.ResourceList{}},
+				VolumeName: "", StorageClassName: (*string)(nil),
+				VolumeMode: (*corev1.PersistentVolumeMode)(nil),
+				DataSource: (*corev1.TypedLocalObjectReference)(nil),
+			},
+			Status: v1.PersistentVolumeClaimStatus{
+				Phase:       "",
+				AccessModes: []corev1.PersistentVolumeAccessMode(nil),
+				Capacity:    corev1.ResourceList(nil),
+				Conditions:  []corev1.PersistentVolumeClaimCondition(nil)},
+		}
+
+		dc := newJenkinsDeploymentConfig(mocks.JenkinsCRMock(test_ns, test_name))
+
+		// Testing the things that are bound to match.
+		// TODO : Add Spec and Status checking
+		if !(reflect.DeepEqual(dc.ObjectMeta.Name, checkDc.ObjectMeta.Name)) {
+			t.Fail()
+		}
 	})
 }
