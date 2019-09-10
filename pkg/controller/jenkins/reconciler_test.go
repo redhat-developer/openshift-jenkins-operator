@@ -4,9 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"reflect"
-
 	"github.com/redhat-developer/openshift-jenkins-operator/test/mocks"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	resource "k8s.io/apimachinery/pkg/api/resource"
@@ -18,10 +17,6 @@ const (
 	test_ns   = "test"
 	test_name = "test-jenkins"
 )
-
-// func TestReconcilerCreateResourceIfNotPresent(t *testing.T) {
-// 	t.FailNow()
-// }
 
 func TestNewJenkinsService(t *testing.T) {
 	t.Run("TestNewJenkinsService", func(t *testing.T) {
@@ -73,13 +68,11 @@ func TestNewJenkinsService(t *testing.T) {
 
 		// Testing the things that are bound to match.
 		svc := newJenkinsService(mocks.JenkinsCRMock(test_ns, test_name), "test", jenkinsPort)
-		if !(reflect.DeepEqual(svc.Spec, checkSvc.Spec) &&
-			reflect.DeepEqual(svc.ObjectMeta.Labels, checkSvc.ObjectMeta.Labels) &&
-			reflect.DeepEqual(svc.ObjectMeta.Name, checkSvc.ObjectMeta.Name) &&
-			reflect.DeepEqual(svc.ObjectMeta.Namespace, checkSvc.ObjectMeta.Namespace) &&
-			reflect.DeepEqual(svc.Status, checkSvc.Status)) {
-			t.Fail()
-		}
+		require.Equal(t, svc.Spec, checkSvc.Spec)
+		require.Equal(t, svc.ObjectMeta.Labels, checkSvc.ObjectMeta.Labels)
+		require.Equal(t, svc.ObjectMeta.Name, checkSvc.ObjectMeta.Name)
+		require.Equal(t, svc.ObjectMeta.Namespace, checkSvc.ObjectMeta.Namespace)
+		require.Equal(t, svc.Status, checkSvc.Status)
 
 	})
 }
@@ -123,11 +116,9 @@ func TestNewJenkinsPvc(t *testing.T) {
 
 		// Testing the things that are bound to match.
 		// TODO : Add Spec checking
-		if !(reflect.DeepEqual(pvc.ObjectMeta.Name, checkPvc.ObjectMeta.Name) &&
-			reflect.DeepEqual(pvc.ObjectMeta.Namespace, checkPvc.ObjectMeta.Namespace) &&
-			reflect.DeepEqual(pvc.Status, checkPvc.Status)) {
-			t.Fail()
-		}
+		require.Equal(t, pvc.ObjectMeta.Name, checkPvc.ObjectMeta.Name)
+		require.Equal(t, pvc.ObjectMeta.Namespace, checkPvc.ObjectMeta.Namespace)
+		require.Equal(t, pvc.Status, checkPvc.Status)
 
 	})
 }
@@ -174,8 +165,7 @@ func TestNewJenkinsDeploymentConfig(t *testing.T) {
 
 		// Testing the things that are bound to match.
 		// TODO : Add Spec and Status checking
-		if !(reflect.DeepEqual(dc.ObjectMeta.Name, checkDc.ObjectMeta.Name)) {
-			t.Fail()
-		}
+		require.Equal(t, dc.ObjectMeta.Name, checkDc.ObjectMeta.Name)
+
 	})
 }
