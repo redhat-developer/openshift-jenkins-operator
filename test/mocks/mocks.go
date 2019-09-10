@@ -11,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
+// Return a mock of a Jenkins Resource
 func JenkinsCRMock(ns, name string) *jenkinsv1alpha1.Jenkins {
 	return &jenkinsv1alpha1.Jenkins{
 		ObjectMeta: metav1.ObjectMeta{
@@ -21,9 +22,9 @@ func JenkinsCRMock(ns, name string) *jenkinsv1alpha1.Jenkins {
 	}
 }
 
+// Return a mock of a Jenkins Deployment Config
 func JenkinsDCMock(ns, name string) corev1.PersistentVolumeClaim {
 	return corev1.PersistentVolumeClaim{
-		TypeMeta: metav1.TypeMeta{Kind: "", APIVersion: ""},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:                       name,
 			GenerateName:               "",
@@ -59,9 +60,9 @@ func JenkinsDCMock(ns, name string) corev1.PersistentVolumeClaim {
 	}
 }
 
+// Return a mock of a Jenkins Persistent Volume Claim
 func JenkinsPvcMock(ns, name string) corev1.PersistentVolumeClaim {
 	return corev1.PersistentVolumeClaim{
-		TypeMeta: metav1.TypeMeta{Kind: "", APIVersion: ""},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:                       "test",
 			GenerateName:               "",
@@ -94,10 +95,10 @@ func JenkinsPvcMock(ns, name string) corev1.PersistentVolumeClaim {
 
 }
 
+// Return a mock of a Service used by Jenkins
 func JenkinsServiceMock(ns, name string) corev1.Service {
 
 	return corev1.Service{
-		TypeMeta: metav1.TypeMeta{Kind: "", APIVersion: ""},
 		ObjectMeta: metav1.ObjectMeta{
 			Name:                       "test",
 			GenerateName:               "",
