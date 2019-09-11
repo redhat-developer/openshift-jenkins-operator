@@ -94,7 +94,7 @@ func (r *JenkinsReconciler) Reconcile(request reconcile.Request) (reconcile.Resu
 	}
 
 	// Define a new DC object
-	dc := newDeploymentConfig(instance)
+	dc := newJenkinsDeploymentConfig(instance)
 
 	// Define Jenkins Services
 	jenkinsPort := corev1.ServicePort{
@@ -117,7 +117,7 @@ func (r *JenkinsReconciler) Reconcile(request reconcile.Request) (reconcile.Resu
 	}
 	jenkinsSvc := newJenkinsService(instance, jenkinsInstanceName, jenkinsPort)                                  // jenkins service
 	jenkinsJNLPSvc := newJenkinsService(instance, jenkinsInstanceName+JenkinsJnlpServiceSuffix, jenkinsJNLPPort) // jenknis jnlp service
-	jenkinsPvc := newJenkinsPvc(instance, jenkinsInstanceName)                                                   // jenknis jnlp service
+	jenkinsPvc := newJenkinsPvc(instance, jenkinsInstanceName)                                                   // jenknis pvc
 
 	// Set Jenkins instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, dc, r.scheme); err != nil {
@@ -161,7 +161,7 @@ func (r *JenkinsReconciler) createResourceIfNotPresent(key types.NamespacedName,
 }
 
 // newDeploymentConfigForCR returns a jenkins DeploymentConfig with the same name/namespace as the cr
-func newDeploymentConfig(cr *jenkinsv1alpha1.Jenkins) *appsv1.DeploymentConfig {
+func newJenkinsDeploymentConfig(cr *jenkinsv1alpha1.Jenkins) *appsv1.DeploymentConfig {
 	labels := map[string]string{
 		JenkinsAppLabelName: cr.Name,
 	}
