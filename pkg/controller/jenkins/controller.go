@@ -6,10 +6,12 @@ import (
 	gerrors "github.com/pkg/errors"
 
 	appsv1 "github.com/openshift/api/apps/v1"
+	authv1 "github.com/openshift/api/authorization/v1"
 	imagev1 "github.com/openshift/api/image/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	jenkinsv1alpha1 "github.com/redhat-developer/openshift-jenkins-operator/pkg/apis/jenkins/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -49,12 +51,15 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	if err != nil {
 		return err
 	}
+
 	watchResourceOrStackError(c, ownerRef, nil)
 	watchResourceOrStackError(c, &appsv1.DeploymentConfig{}, ownerRef) // Watch DeploymentConfig and requeue the owner Jenkins
 	watchResourceOrStackError(c, &imagev1.ImageStream{}, ownerRef)
 	watchResourceOrStackError(c, &corev1.ServiceAccount{}, ownerRef)
 	watchResourceOrStackError(c, &corev1.PersistentVolumeClaim{}, ownerRef)
 	watchResourceOrStackError(c, &routev1.Route{}, ownerRef)
+	watchResourceOrStackError(c, &authv1.RoleBinding{}, ownerRef)
+	watchResourceOrStackError(c, &corev1.ServiceAccount{}, ownerRef)
 
 	// TODO check if errors is empty or not
 	return nil

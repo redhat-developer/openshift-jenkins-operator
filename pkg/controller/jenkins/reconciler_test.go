@@ -1,6 +1,8 @@
 package jenkins
 
 import (
+	"encoding/json"
+	"fmt"
 	"testing"
 
 	"github.com/redhat-developer/openshift-jenkins-operator/test/mocks"
@@ -28,7 +30,10 @@ func TestNewJenkinsService(t *testing.T) {
 
 		svc := newJenkinsService(mocks.JenkinsCRMock(test_ns, test_name), "test", jenkinsPort)
 		mockSvc := mocks.JenkinsServiceMock(test_ns, test_name)
-
+		b, err := json.MarshalIndent(svc, "", "  ")
+		if err == nil {
+			fmt.Println(string(b))
+		}
 		// Testing the things that are bound to match.
 		require.Equal(t, svc.Spec, mockSvc.Spec)
 		require.Equal(t, svc.ObjectMeta.Labels, mockSvc.ObjectMeta.Labels)
@@ -55,10 +60,15 @@ func TestNewJenkinsPvc(t *testing.T) {
 
 func TestNewJenkinsDeploymentConfig(t *testing.T) {
 	t.Run("TestNewJenkinsDc", func(t *testing.T) {
-		dc := newJenkinsDeploymentConfig(mocks.JenkinsCRMock(test_ns, test_name))
+		dc := newJenkinsDeploymentConfig(mocks.JenkinsCRMock(test_ns, test_name), JenkinsServiceName, JenkinsJNLPServiceName)
+
 		mockDc := mocks.JenkinsDCMock(test_ns, test_name)
 		// Testing the things that are bound to match.
 		// TODO : Add Spec and Status checking
+		b, err := json.MarshalIndent(dc, "", "  ")
+		if err == nil {
+			fmt.Println(string(b))
+		}
 		require.Equal(t, dc.ObjectMeta.Name, mockDc.ObjectMeta.Name)
 
 	})

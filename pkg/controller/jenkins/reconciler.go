@@ -5,10 +5,13 @@ import (
 
 	"github.com/go-logr/logr"
 	appsv1 "github.com/openshift/api/apps/v1"
+	authv1 "github.com/openshift/api/authorization/v1"
+	routev1 "github.com/openshift/api/route/v1"
 	jenkinsv1alpha1 "github.com/redhat-developer/openshift-jenkins-operator/pkg/apis/jenkins/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 	resource "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"k8s.io/client-go/dynamic"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -42,6 +45,7 @@ const (
 	JenkinsImage             = "image-registry.openshift-image-registry.svc:5000/openshift/jenkins"
 	JenkinsContainerName     = "jenkins"
 	JenkinsAppLabel          = "app"
+	JenkinsNameLabel         = "name"
 
 	JenkinsPvcName         = "jenkins"
 	JenkinsPvcSize         = "1Gi"
@@ -94,7 +98,7 @@ func (r *JenkinsReconciler) Reconcile(request reconcile.Request) (reconcile.Resu
 	}
 
 	// Define a new DC object
-	dc := newJenkinsDeploymentConfig(instance)
+	jenkinsDc := newJenkinsDeploymentConfig(instance, jenkinsInstanceName, jenkinsInstanceName+JenkinsJnlpServiceSuffix)
 
 	// Define Jenkins Services
 	jenkinsPort := corev1.ServicePort{
@@ -117,31 +121,67 @@ func (r *JenkinsReconciler) Reconcile(request reconcile.Request) (reconcile.Resu
 	}
 	jenkinsSvc := newJenkinsService(instance, jenkinsInstanceName, jenkinsPort)                                  // jenkins service
 	jenkinsJNLPSvc := newJenkinsService(instance, jenkinsInstanceName+JenkinsJnlpServiceSuffix, jenkinsJNLPPort) // jenknis jnlp service
-	jenkinsPvc := newJenkinsPvc(instance, jenkinsInstanceName)                                                   // jenknis pvc
+	jenkinsRoute := newJenkinsRoute(instance, jenkinsSvc)
+	jenkinsPvc := newJenkinsPvc(instance, jenkinsInstanceName) // jenknis pvc
+	jenkinsServiceAccount := newJenkinsServiceAccount(instance, jenkinsInstanceName)
+	jenkinsRoleBinding := newJenkinsRoleBinding(instance, jenkinsInstanceName)
 
 	// Set Jenkins instance as the owner and controller
-	if err := controllerutil.SetControllerReference(instance, dc, r.scheme); err != nil {
+	if err := controllerutil.SetControllerReference(instance, jenkinsDc, r.scheme); err != nil {
+		return reconcile.Result{}, err
+	}
+	if err := controllerutil.SetControllerReference(instance, jenkinsSvc, r.scheme); err != nil {
+		return reconcile.Result{}, err
+	}
+	if err := controllerutil.SetControllerReference(instance, jenkinsJNLPSvc, r.scheme); err != nil {
+		return reconcile.Result{}, err
+	}
+	if err := controllerutil.SetControllerReference(instance, jenkinsRoute, r.scheme); err != nil {
+		return reconcile.Result{}, err
+	}
+	if err := controllerutil.SetControllerReference(instance, jenkinsPvc, r.scheme); err != nil {
+		return reconcile.Result{}, err
+	}
+	if err := controllerutil.SetControllerReference(instance, jenkinsServiceAccount, r.scheme); err != nil {
+		return reconcile.Result{}, err
+	}
+	if err := controllerutil.SetControllerReference(instance, jenkinsRoleBinding, r.scheme); err != nil {
 		return reconcile.Result{}, err
 	}
 
-	// Check if this DC already exists
+	// Check if this DC already exists,
 	found := &appsv1.DeploymentConfig{}
 	namespacedName := types.NamespacedName{
 		Namespace: found.Namespace,
 		Name:      found.Name,
 	}
 
-	//TODO implements error checking
-	err = r.createResourceIfNotPresent(namespacedName, dc)
+	// TODO implement error checking for existence of the resource
+	// *or if there is an actual error* deal with it (<>_<>-)
+	// Also -- https://github.com/redhat-developer/openshift-jenkins-operator/pull/17#pullrequestreview-289463590 --
+	err = r.createResourceIfNotPresent(namespacedName, jenkinsDc)
+	err = r.createResourceIfNotPresent(namespacedName, jenkinsServiceAccount)
+	err = r.createResourceIfNotPresent(namespacedName, jenkinsRoleBinding)
 	err = r.createResourceIfNotPresent(namespacedName, jenkinsSvc)
 	err = r.createResourceIfNotPresent(namespacedName, jenkinsJNLPSvc)
+	err = r.createResourceIfNotPresent(namespacedName, jenkinsRoute)
 	err = r.createResourceIfNotPresent(namespacedName, jenkinsPvc)
-
-	if err != nil {
-		return r.result, err
-	}
 	return r.result, nil
 }
+
+/*
+Jenkins Resources created by jenkins-persistent Template
+
+Route
+Service (jnlp)
+Service (jenkins)
+PersistentVolumeClaim
+DeploymentConfig
+ServiceAccount
+RoleBinding
+
+
+*/
 
 func (r *JenkinsReconciler) createResourceIfNotPresent(key types.NamespacedName, resource runtime.Object) error {
 	err := r.client.Get(context.TODO(), key, resource)
@@ -161,11 +201,28 @@ func (r *JenkinsReconciler) createResourceIfNotPresent(key types.NamespacedName,
 }
 
 // newDeploymentConfigForCR returns a jenkins DeploymentConfig with the same name/namespace as the cr
-func newJenkinsDeploymentConfig(cr *jenkinsv1alpha1.Jenkins) *appsv1.DeploymentConfig {
+func newJenkinsDeploymentConfig(cr *jenkinsv1alpha1.Jenkins, jenkinsService, jenkinsJNLPService string) *appsv1.DeploymentConfig {
 	labels := map[string]string{
 		JenkinsAppLabelName: cr.Name,
+		JenkinsNameLabel:    JenkinsContainerName,
 	}
 	jenkinsInstanceName := cr.Name
+
+	envVars := []corev1.EnvVar{
+		corev1.EnvVar{Name: "OPENSHIFT_ENABLE_OAUTH", Value: "true"},
+		corev1.EnvVar{Name: "OPENSHIFT_ENABLE_REDIRECT_PROMPT", Value: "true"},
+		corev1.EnvVar{Name: "DISABLE_ADMINISTRATIVE_MONITORS", Value: "false"},
+		corev1.EnvVar{Name: "KUBERNETES_MASTER", Value: "https://kubernetes.default:443"},
+		corev1.EnvVar{Name: "KUBERNETES_TRUST_CERTIFICATES", Value: "true"},
+		corev1.EnvVar{Name: "JENKINS_SERVICE_NAME", Value: jenkinsService},
+		corev1.EnvVar{Name: "JNLP_SERVICE_NAME", Value: jenkinsJNLPService},
+		corev1.EnvVar{Name: "ENABLE_FATAL_ERROR_LOG_FILE", Value: "false"},
+		corev1.EnvVar{Name: "JENKINS_UC_INSECURE", Value: "false"},
+	}
+
+	livenessProbe := newProbe("/login", 8080, 420, 240, 360)
+	readinessProbe := newProbe("/login", 8080, 3, 240, 0)
+
 	dc := &appsv1.DeploymentConfig{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      jenkinsInstanceName,
@@ -175,6 +232,7 @@ func newJenkinsDeploymentConfig(cr *jenkinsv1alpha1.Jenkins) *appsv1.DeploymentC
 		Spec: appsv1.DeploymentConfigSpec{
 			Replicas: 1,
 			Selector: labels,
+			Strategy: appsv1.DeploymentStrategy{Type: appsv1.DeploymentStrategyTypeRecreate},
 			Template: &corev1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: labels,
@@ -187,6 +245,15 @@ func newJenkinsDeploymentConfig(cr *jenkinsv1alpha1.Jenkins) *appsv1.DeploymentC
 							VolumeMounts: []corev1.VolumeMount{
 								{Name: JenkinsVolumeName, MountPath: JenkinsVolumeMountPath},
 							},
+							Env:                    envVars,
+							LivenessProbe:          &livenessProbe,
+							ReadinessProbe:         &readinessProbe,
+							TerminationMessagePath: "/dev/termination-log",
+							Resources: corev1.ResourceRequirements{
+								Limits: corev1.ResourceList{
+									corev1.ResourceMemory: resource.MustParse("1Gi"),
+								},
+							},
 						},
 					},
 					Volumes: []corev1.Volume{
@@ -198,6 +265,7 @@ func newJenkinsDeploymentConfig(cr *jenkinsv1alpha1.Jenkins) *appsv1.DeploymentC
 							},
 						},
 					},
+					ServiceAccountName: jenkinsInstanceName,
 				},
 			},
 		},
@@ -206,9 +274,31 @@ func newJenkinsDeploymentConfig(cr *jenkinsv1alpha1.Jenkins) *appsv1.DeploymentC
 	return dc
 }
 
+func newProbe(path string, port int, initialDelaySeconds, timeoutSeconds, periodSeconds int32) corev1.Probe {
+	probe := corev1.Probe{
+		Handler: corev1.Handler{
+			HTTPGet: &corev1.HTTPGetAction{
+				Path: path,
+				Port: intstr.FromInt(port),
+			},
+		},
+		FailureThreshold:    2,
+		InitialDelaySeconds: initialDelaySeconds,
+		TimeoutSeconds:      timeoutSeconds,
+	}
+
+	if periodSeconds > 0 {
+		probe.PeriodSeconds = periodSeconds
+	}
+
+	return probe
+}
+
 // newJenkinsServicefor templates a new Service for Jenkins
 func newJenkinsService(cr *jenkinsv1alpha1.Jenkins, name string, port corev1.ServicePort) *corev1.Service {
-	labels := map[string]string{JenkinsAppLabel: cr.Name}
+	labels := map[string]string{
+		JenkinsAppLabel: cr.Name,
+	}
 	ports := []corev1.ServicePort{port}
 	svc := &corev1.Service{ObjectMeta: metav1.ObjectMeta{
 		Name:      name,
@@ -220,6 +310,25 @@ func newJenkinsService(cr *jenkinsv1alpha1.Jenkins, name string, port corev1.Ser
 		Type:     corev1.ServiceTypeClusterIP},
 	}
 	return svc
+}
+
+func newJenkinsRoute(cr *jenkinsv1alpha1.Jenkins, svc *corev1.Service) *routev1.Route {
+	return &routev1.Route{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      cr.Name,
+			Namespace: cr.Namespace,
+		},
+		Spec: routev1.RouteSpec{
+			TLS: &routev1.TLSConfig{
+				InsecureEdgeTerminationPolicy: routev1.InsecureEdgeTerminationPolicyRedirect,
+				Termination:                   routev1.TLSTerminationEdge,
+			},
+			To: routev1.RouteTargetReference{
+				Kind: svc.Kind,
+				Name: svc.Name,
+			},
+		},
+	}
 }
 
 func newJenkinsPvc(cr *jenkinsv1alpha1.Jenkins, name string) *corev1.PersistentVolumeClaim {
@@ -238,4 +347,46 @@ func newJenkinsPvc(cr *jenkinsv1alpha1.Jenkins, name string) *corev1.PersistentV
 	}
 
 	return pvc
+}
+
+func newJenkinsServiceAccount(cr *jenkinsv1alpha1.Jenkins, name string) *corev1.ServiceAccount {
+	labels := map[string]string{
+		JenkinsAppLabel:  cr.Name,
+		JenkinsNameLabel: JenkinsServiceName,
+	}
+	annotationKey := "serviceaccounts.openshift.io/oauth-redirectreference." + cr.Name
+	annotationValue := "{\"kind\":\"OAuthRedirectReference\",\"apiVersion\":\"v1\",\"reference\":{\"kind\":\"Route\",\"name\":\"" + cr.Name + "\"}}"
+	return &corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: cr.Namespace,
+			Labels:    labels,
+			Annotations: map[string]string{
+				annotationKey: annotationValue,
+			},
+		},
+	}
+}
+
+func newJenkinsRoleBinding(cr *jenkinsv1alpha1.Jenkins, jenkinsServiceAccountName string) *authv1.RoleBinding {
+	labels := map[string]string{
+		JenkinsAppLabel:  cr.Name,
+		JenkinsNameLabel: JenkinsServiceName,
+	}
+	return &authv1.RoleBinding{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      cr.Name + "_edit",
+			Namespace: cr.Namespace,
+			Labels:    labels,
+		},
+		RoleRef: corev1.ObjectReference{
+			Name: "edit",
+		},
+		Subjects: []corev1.ObjectReference{
+			corev1.ObjectReference{
+				Kind: "ServiceAccount",
+				Name: jenkinsServiceAccountName,
+			},
+		},
+	}
 }

@@ -117,7 +117,7 @@ func JenkinsServiceMock(ns, name string) corev1.Service {
 			Finalizers:                 []string(nil), ClusterName: ""},
 		Spec: corev1.ServiceSpec{
 			Ports:                    []corev1.ServicePort{corev1.ServicePort{Name: "web", Protocol: "TCP", Port: 80, TargetPort: intstr.IntOrString{Type: 0, IntVal: 8080, StrVal: "8080"}, NodePort: 0}},
-			Selector:                 map[string]string{"app": "test-jenkins"},
+			Selector:                 map[string]string{"app": name},
 			ClusterIP:                "",
 			Type:                     "ClusterIP",
 			ExternalIPs:              []string(nil),

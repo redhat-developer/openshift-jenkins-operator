@@ -59,7 +59,7 @@ spec:
                 imagePullPolicy: Always
                 name: jenkins-operator
                 resources: {}
-              serviceAccountName: jenkins-operator
+              serviceAccountName: openshift-jenkins-operator
       permissions:
       - rules:
         - apiGroups:
@@ -111,7 +111,7 @@ spec:
           verbs:
           - "get"
           - "list"
-        serviceAccountName: jenkins-operator
+        serviceAccountName: openshift-jenkins-operator
     strategy: deployment
   installModes:
   - supported: true
