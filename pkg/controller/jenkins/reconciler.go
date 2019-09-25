@@ -94,7 +94,7 @@ func (r *JenkinsReconciler) Reconcile(request reconcile.Request) (reconcile.Resu
 			return r.result, nil
 		}
 		// Error reading the object - requeue the request.
-		return reconcile.Result{}, err
+		return Done()
 	}
 
 	// Define a new DC object
@@ -119,6 +119,7 @@ func (r *JenkinsReconciler) Reconcile(request reconcile.Request) (reconcile.Resu
 			StrVal: JenkinsAgentPortAsStr,
 		},
 	}
+
 	jenkinsSvc := newJenkinsService(instance, jenkinsInstanceName, jenkinsPort)                                  // jenkins service
 	jenkinsJNLPSvc := newJenkinsService(instance, jenkinsInstanceName+JenkinsJnlpServiceSuffix, jenkinsJNLPPort) // jenknis jnlp service
 	jenkinsRoute := newJenkinsRoute(instance, jenkinsSvc)
@@ -128,44 +129,38 @@ func (r *JenkinsReconciler) Reconcile(request reconcile.Request) (reconcile.Resu
 
 	// Set Jenkins instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, jenkinsDc, r.scheme); err != nil {
-		return reconcile.Result{}, err
+		return Done()
 	}
 	if err := controllerutil.SetControllerReference(instance, jenkinsSvc, r.scheme); err != nil {
-		return reconcile.Result{}, err
+		return Done()
 	}
 	if err := controllerutil.SetControllerReference(instance, jenkinsJNLPSvc, r.scheme); err != nil {
-		return reconcile.Result{}, err
+		return Done()
 	}
 	if err := controllerutil.SetControllerReference(instance, jenkinsRoute, r.scheme); err != nil {
-		return reconcile.Result{}, err
+		return Done()
 	}
 	if err := controllerutil.SetControllerReference(instance, jenkinsPvc, r.scheme); err != nil {
-		return reconcile.Result{}, err
+		return Done()
 	}
 	if err := controllerutil.SetControllerReference(instance, jenkinsServiceAccount, r.scheme); err != nil {
-		return reconcile.Result{}, err
+		return Done()
 	}
 	if err := controllerutil.SetControllerReference(instance, jenkinsRoleBinding, r.scheme); err != nil {
-		return reconcile.Result{}, err
-	}
-
-	// Check if this DC already exists,
-	found := &appsv1.DeploymentConfig{}
-	namespacedName := types.NamespacedName{
-		Namespace: found.Namespace,
-		Name:      found.Name,
+		return Done()
 	}
 
 	// TODO implement error checking for existence of the resource
 	// *or if there is an actual error* deal with it (<>_<>-)
 	// Also -- https://github.com/redhat-developer/openshift-jenkins-operator/pull/17#pullrequestreview-289463590 --
-	err = r.createResourceIfNotPresent(namespacedName, jenkinsDc)
-	err = r.createResourceIfNotPresent(namespacedName, jenkinsServiceAccount)
-	err = r.createResourceIfNotPresent(namespacedName, jenkinsRoleBinding)
-	err = r.createResourceIfNotPresent(namespacedName, jenkinsSvc)
-	err = r.createResourceIfNotPresent(namespacedName, jenkinsJNLPSvc)
-	err = r.createResourceIfNotPresent(namespacedName, jenkinsRoute)
-	err = r.createResourceIfNotPresent(namespacedName, jenkinsPvc)
+
+	err = r.createResourceIfNotPresent(jenkinsDc, jenkinsDc.Name, instance.Namespace)
+	err = r.createResourceIfNotPresent(jenkinsServiceAccount, jenkinsServiceAccount.ObjectMeta.Name, instance.Namespace)
+	err = r.createResourceIfNotPresent(jenkinsRoleBinding, jenkinsRoleBinding.ObjectMeta.Name, instance.Namespace)
+	err = r.createResourceIfNotPresent(jenkinsSvc, jenkinsSvc.ObjectMeta.Name, instance.Namespace)
+	err = r.createResourceIfNotPresent(jenkinsJNLPSvc, jenkinsJNLPSvc.ObjectMeta.Name, instance.Namespace)
+	err = r.createResourceIfNotPresent(jenkinsRoute, jenkinsRoute.ObjectMeta.Name, instance.Namespace)
+	err = r.createResourceIfNotPresent(jenkinsPvc, jenkinsPvc.ObjectMeta.Name, instance.Namespace)
 	return r.result, nil
 }
 
@@ -183,8 +178,16 @@ RoleBinding
 
 */
 
-func (r *JenkinsReconciler) createResourceIfNotPresent(key types.NamespacedName, resource runtime.Object) error {
+func (r *JenkinsReconciler) createResourceIfNotPresent(resource runtime.Object, name, namespace string) error {
+	key := types.NamespacedName{
+		Name:      name,
+		Namespace: namespace,
+	}
 	err := r.client.Get(context.TODO(), key, resource)
+	if err != nil && errors.IsAlreadyExists(err) {
+		r.result = reconcile.Result{Requeue: false}
+		return err
+	}
 	if err != nil && errors.IsNotFound(err) {
 		r.logger.Info("Creating a new Object", "in Namespace", key.Namespace, "Resource.Name", resource)
 		err = r.client.Create(context.TODO(), resource)
@@ -193,10 +196,10 @@ func (r *JenkinsReconciler) createResourceIfNotPresent(key types.NamespacedName,
 			return err
 		}
 		// Resource created successfully - don't requeue
+		r.result = reconcile.Result{Requeue: false}
 		return nil
-	} else if err != nil {
-		return err
 	}
+
 	return nil
 }
 
