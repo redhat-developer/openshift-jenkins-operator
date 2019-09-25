@@ -178,13 +178,15 @@ RoleBinding
 
 */
 
-func (r *JenkinsReconciler) createResourceIfNotPresent(resource runtime.Object, name, namespace string) error {
+func (r *JenkinsReconciler) createResourceIfNotPresent(resource runtime.Object, name string, namespace string) error {
 	key := types.NamespacedName{
 		Name:      name,
 		Namespace: namespace,
 	}
+	//	r.logger.Info("Checking if object exists", "in Namespace", key.Namespace, "Resource.Name", resource)
 	err := r.client.Get(context.TODO(), key, resource)
 	if err != nil && errors.IsAlreadyExists(err) {
+		r.logger.Info("Object already exists", "in Namespace", key.Namespace, "Resource.Name", resource, ": No need to requeue")
 		r.result = reconcile.Result{Requeue: false}
 		return err
 	}

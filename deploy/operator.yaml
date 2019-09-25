@@ -13,6 +13,7 @@ spec:
         name: openshift-jenkins-operator
     spec:
       serviceAccountName: openshift-jenkins-operator
+      serviceAccount: openshift-jenkins-operator
       containers:
       - name: openshift-jenkins-operator
         image: quay.io/akram/openshift-jenkins-operator # Replace this with the built image name

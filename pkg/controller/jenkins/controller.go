@@ -36,7 +36,6 @@ func Add(mgr manager.Manager) error {
 
 // add adds a new Controller to mgr with r as the reconcile.Reconciler
 func add(mgr manager.Manager, r reconcile.Reconciler) error {
-	//	errors := gerrors.New("Initialisation errors")
 
 	// Create a new controller
 	c, err := controller.New(JenkinsControllerName, mgr, controller.Options{Reconciler: r})
@@ -45,13 +44,6 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	}
 
 	ownerRef := &jenkinsv1alpha1.Jenkins{}
-	handler := &handler.EnqueueRequestForObject{}
-	// Watch for changes to primary resource Jenkins
-	err = c.Watch(&source.Kind{Type: ownerRef}, handler)
-	if err != nil {
-		return err
-	}
-
 	watchResourceOrStackError(c, ownerRef, nil)
 	watchResourceOrStackError(c, &appsv1.DeploymentConfig{}, ownerRef) // Watch DeploymentConfig and requeue the owner Jenkins
 	watchResourceOrStackError(c, &imagev1.ImageStream{}, ownerRef)

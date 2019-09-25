@@ -5,6 +5,20 @@ metadata:
   name: openshift-jenkins-operator
 rules:
 - apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - roles
+  - rolebindings
+  verbs:
+  - '*'
+- apiGroups:
+  - authorization.openshift.io
+  resources:
+  - roles
+  - rolebindings
+  verbs:
+  - '*'
+- apiGroups:
   - ''
   resources:
   - pods
