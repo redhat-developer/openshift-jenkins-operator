@@ -2,59 +2,62 @@ apiVersion: operators.coreos.com/v1alpha1
 kind: ClusterServiceVersion
 metadata:
   annotations:
-    alm-examples: |-
-      [
-        {
-          "apiVersion": "jenkins.dev/v1alpha1",
-          "kind": "Jenkins",
-          "metadata": {
-            "name": "example-jenkins"
-          },
-          "spec": {
-            "size": 3
-          }
-        }
-      ]
+    alm-examples: '[{"apiVersion":"apps.openshift.io/v1alpha1","kind":"ServiceBindingRequest","metadata":{"name":"example-servicebindingrequest"},"spec":{"applicationSelector":{"matchLabels":{"connects-to":"postgres","environment":"production"},"resourceKind":"Deployment"},"backingServiceSelector":{"resourceName":"database.example.org","resourceVersion":"v1alpha1"}}}]'  # yamllint disable-line rule:line-length
     capabilities: Basic Install
-  name: openshift-jenkins-operator.v0.0.1
+    containerImage: quay.io/redhat-developer/openshift-jenkins-operator:v0.0.2
+    description: An operator to support binding capabilities between imported
+      apps and operator backed services
+  name: jenkins-operator.v0.0.2
   namespace: placeholder
 spec:
+  links:
+  - name: Source Code
+    url: https://github.com/redhat-developer/openshift-jenkins-operator
+  maintainers:
+    - email: abenaiss@redhat.com
+      name: Akram Ben Aissi
+    - email: vbobade@redhat.com
+      name: Vibhav Bobade
   apiservicedefinitions: {}
-  customresourcedefinitions: {}
+  customresourcedefinitions:
+    owned:
+    - kind: Jenkins
+      name: jenkins.jenkins.dev
+      version: v1alpha1
+      displayName: Jenkins
+      description: Installs a Jenkins server instance
   description: Placeholder description
-  displayName: Openshift Jenkins Operator
+  displayName: Jenkins Operator
   install:
     spec:
       deployments:
-      - name: openshift-jenkins-operator
+      - name: jenkins-operator
         spec:
           replicas: 1
           selector:
             matchLabels:
-              name: openshift-jenkins-operator
+              name: jenkins-operator
           strategy: {}
           template:
             metadata:
               labels:
-                name: openshift-jenkins-operator
+                name: jenkins-operator
             spec:
               containers:
               - command:
-                - openshift-jenkins-operator
+                - jenkins-operator
                 env:
                 - name: WATCH_NAMESPACE
-                  valueFrom:
-                    fieldRef:
-                      fieldPath: metadata.annotations['olm.targetNamespaces']
+                  value: ""
                 - name: POD_NAME
                   valueFrom:
                     fieldRef:
                       fieldPath: metadata.name
                 - name: OPERATOR_NAME
-                  value: openshift-jenkins-operator
-                image: quay.io/redhat-developer/openshift-jenkins-operator:latest
+                  value: jenkins-operator
+                image: quay.io/redhat-developer/openshift-jenkins-operator:v0.0.2
                 imagePullPolicy: Always
-                name: openshift-jenkins-operator
+                name: jenkins-operator
                 resources: {}
               serviceAccountName: openshift-jenkins-operator
       permissions:
@@ -64,7 +67,6 @@ spec:
           resources:
           - pods
           - services
-          - services/finalizers
           - endpoints
           - persistentvolumeclaims
           - events
@@ -91,29 +93,24 @@ spec:
         - apiGroups:
           - apps
           resourceNames:
-          - openshift-jenkins-operator
+          - jenkins-operator
           resources:
           - deployments/finalizers
           verbs:
           - update
         - apiGroups:
-          - ""
-          resources:
-          - pods
-          verbs:
-          - get
-        - apiGroups:
-          - apps
-          resources:
-          - replicasets
-          verbs:
-          - get
-        - apiGroups:
-          - jenkins.dev
+          - apps.openshift.io
           resources:
           - '*'
           verbs:
           - '*'
+        - apiGroups:
+          - "*"
+          resources:
+          - "*"
+          verbs:
+          - "get"
+          - "list"
         serviceAccountName: openshift-jenkins-operator
     strategy: deployment
   installModes:
@@ -126,5 +123,6 @@ spec:
   - supported: true
     type: AllNamespaces
   maturity: alpha
-  provider: {}
-  version: 0.0.1
+  provider:
+    name: Red Hat, Inc.
+  version: 0.0.2
