@@ -5,8 +5,8 @@ metadata:
     alm-examples: '[{"apiVersion":"apps.openshift.io/v1alpha1","kind":"ServiceBindingRequest","metadata":{"name":"example-servicebindingrequest"},"spec":{"applicationSelector":{"matchLabels":{"connects-to":"postgres","environment":"production"},"resourceKind":"Deployment"},"backingServiceSelector":{"resourceName":"database.example.org","resourceVersion":"v1alpha1"}}}]'  # yamllint disable-line rule:line-length
     capabilities: Basic Install
     containerImage: quay.io/redhat-developer/openshift-jenkins-operator:v0.0.2
-    description: An operator to support binding capabilities between imported
-      apps and operator backed services
+    description: An operator to provide the Jenkins server to support
+      automated building, testing, and deploying software.
   name: jenkins-operator.v0.0.2
   namespace: placeholder
 spec:
@@ -26,7 +26,8 @@ spec:
       version: v1alpha1
       displayName: Jenkins
       description: Installs a Jenkins server instance
-  description: Placeholder description
+  description: An operator to provide the Jenkins server to support
+      automated building, testing, and deploying software.
   displayName: Jenkins Operator
   install:
     spec:
