@@ -44,6 +44,7 @@ const (
 	JenkinsJnlpServiceSuffix = "-jnlp"
 	JenkinsImage             = "image-registry.openshift-image-registry.svc:5000/openshift/jenkins"
 	JenkinsContainerName     = "jenkins"
+	JenkinsContainerMemory   = "1Gi"
 	JenkinsAppLabel          = "app"
 	JenkinsNameLabel         = "name"
 
@@ -256,7 +257,7 @@ func newJenkinsDeploymentConfig(cr *jenkinsv1alpha1.Jenkins, jenkinsService, jen
 							TerminationMessagePath: "/dev/termination-log",
 							Resources: corev1.ResourceRequirements{
 								Limits: corev1.ResourceList{
-									corev1.ResourceMemory: resource.MustParse("1Gi"),
+									corev1.ResourceMemory: resource.MustParse(JenkinsContainerMemory),
 								},
 							},
 						},
