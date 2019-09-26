@@ -16,7 +16,7 @@ spec:
       serviceAccount: openshift-jenkins-operator
       containers:
       - name: openshift-jenkins-operator
-        image: image: quay.io/redhat-developer/openshift-jenkins-operator
+        image: quay.io/redhat-developer/openshift-jenkins-operator
         imagePullPolicy: Always
         command:
         - openshift-jenkins-operator

@@ -17,10 +17,9 @@ const (
 )
 
 type Fake struct {
-	t    *testing.T       // testing instance
-	ns   string           // namespace
-	S    *runtime.Scheme  // runtime client scheme
-	objs []runtime.Object // all fake objects
+	t  *testing.T      // testing instance
+	ns string          // namespace
+	S  *runtime.Scheme // runtime client scheme
 }
 
 // AddMockedJenkins add mocked object from  JenkinsMock
