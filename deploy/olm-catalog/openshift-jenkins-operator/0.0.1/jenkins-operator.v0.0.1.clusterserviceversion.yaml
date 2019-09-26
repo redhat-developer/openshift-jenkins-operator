@@ -16,31 +16,37 @@ metadata:
         }
       ]
     capabilities: Basic Install
-  name: openshift-jenkins-operator.v0.0.1
+  name: jenkins-operator.v0.0.1
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
-  customresourcedefinitions: {}
+  customresourcedefinitions:
+    owned:
+      - kind: Jenkins
+        name: jenkins.jenkins.dev
+        version: v1alpha1
+        displayName: Jenkins
+        description: Creates and manages a Jenkins instance.
   description: Placeholder description
   displayName: Openshift Jenkins Operator
   install:
     spec:
       deployments:
-      - name: openshift-jenkins-operator
+      - name: jenkins-operator
         spec:
           replicas: 1
           selector:
             matchLabels:
-              name: openshift-jenkins-operator
+              name: jenkins-operator
           strategy: {}
           template:
             metadata:
               labels:
-                name: openshift-jenkins-operator
+                name: jenkins-operator
             spec:
               containers:
               - command:
-                - openshift-jenkins-operator
+                - jenkins-operator
                 env:
                 - name: WATCH_NAMESPACE
                   valueFrom:
@@ -51,12 +57,12 @@ spec:
                     fieldRef:
                       fieldPath: metadata.name
                 - name: OPERATOR_NAME
-                  value: openshift-jenkins-operator
-                image: REPLACE_IMAGE
+                  value: jenkins-operator
+                image: quay.io/redhat-developer/openshift-jenkins-operator
                 imagePullPolicy: Always
-                name: openshift-jenkins-operator
+                name: jenkins-operator
                 resources: {}
-              serviceAccountName: openshift-jenkins-operator
+              serviceAccountName: jenkins-operator
       permissions:
       - rules:
         - apiGroups:
@@ -91,7 +97,7 @@ spec:
         - apiGroups:
           - apps
           resourceNames:
-          - openshift-jenkins-operator
+          - jenkins-operator
           resources:
           - deployments/finalizers
           verbs:
@@ -114,7 +120,7 @@ spec:
           - '*'
           verbs:
           - '*'
-        serviceAccountName: openshift-jenkins-operator
+        serviceAccountName: jenkins-operator
     strategy: deployment
   installModes:
   - supported: true

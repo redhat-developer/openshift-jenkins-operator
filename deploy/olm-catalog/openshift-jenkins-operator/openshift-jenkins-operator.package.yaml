@@ -1,5 +1,0 @@
-channels:
-- currentCSV: openshift-jenkins-operator.v0.0.1
-  name: alpha
-defaultChannel: alpha
-packageName: openshift-jenkins-operator
