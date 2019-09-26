@@ -52,7 +52,7 @@ spec:
                       fieldPath: metadata.name
                 - name: OPERATOR_NAME
                   value: openshift-jenkins-operator
-                image: REPLACE_IMAGE
+                image: quay.io/redhat-developer/openshift-jenkins-operator:latest
                 imagePullPolicy: Always
                 name: openshift-jenkins-operator
                 resources: {}
