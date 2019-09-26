@@ -324,6 +324,12 @@ deploy-clean:
 ## Deploy:
 deploy: deploy-rbac deploy-crds
 
+## -- Operator Installation Targets --
+
+.PHONY: install-operator-source
+## Install the Jenkins Operator
+install-operator-source:
+	$(Q)kubectl apply -f jenkins-operator-source.yaml
 
 ## -- Cleanup targets --
 
