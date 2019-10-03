@@ -42,3 +42,20 @@ https://example-jenkins-jenkins-demo.apps.my-cluster.testcluster.openshift.com:4
 And then, navigate to the route in your browser. You will be redirected
 by Jenkins to log into the OpenShift console before the Jenkins console
 web UI is opened.
+
+## Creating a Pipeline
+
+Creating a new project that defines a pipeline (for example, through a
+project's JenkinsFile) will automatically create a job and build in
+the Operator managed instance of Jenkins.
+
+For example:
+``` bash
+oc new-app https://github.com/waveywaves/nodejs-ex --context-dir openshift/pipelines
+```
+
+
+
+
+
+
