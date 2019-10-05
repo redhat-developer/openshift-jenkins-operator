@@ -60,7 +60,7 @@ func TestNewJenkinsPvc(t *testing.T) {
 
 func TestNewJenkinsDeploymentConfig(t *testing.T) {
 	t.Run("TestNewJenkinsDc", func(t *testing.T) {
-		dc := newJenkinsDeploymentConfig(mocks.JenkinsCRMock(test_ns, test_name), JenkinsServiceName, JenkinsJNLPServiceName)
+		dc := newJenkinsDeploymentConfig(mocks.JenkinsCRMock(test_ns, test_name), JenkinsServiceName, JenkinsJNLPServiceName, true)
 
 		mockDc := mocks.JenkinsDCMock(test_ns, test_name)
 		// Testing the things that are bound to match.

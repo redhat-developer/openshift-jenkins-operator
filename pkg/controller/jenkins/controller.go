@@ -36,7 +36,8 @@ type ControlledResources struct {
 	ImageStream           *imagev1.ImageStream
 	JenkinsService        *corev1.Service
 	JNLPService           *corev1.Service
-	PersistentVolumeClaim *corev1.PersistentVolumeClaim
+	Volume                *corev1.Volume
+	PersistentVolumeClaim *corev1.PersistentVolumeClaim `json:",omitempty" bson:",omitempty"`
 	Route                 *routev1.Route
 	RoleBinding           *rbacv1.RoleBinding
 	ServiceAccount        *corev1.ServiceAccount

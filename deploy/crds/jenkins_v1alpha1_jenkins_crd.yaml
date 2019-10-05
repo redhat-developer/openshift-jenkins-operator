@@ -28,6 +28,19 @@ spec:
         metadata:
           type: object
         spec:
+          properties:
+            persistence:
+              type: object
+              properties:
+                enabled:
+                  type: boolean
+                size: 
+                  type: string
+                  pattern: ^[0-9]+(Mi|Gi)
+              required: 
+                - "enabled"
+              description: Persistence is used to define the persistence of the Jenkins Instance
+          required: ["persistence"]
           type: object
         status:
           type: object

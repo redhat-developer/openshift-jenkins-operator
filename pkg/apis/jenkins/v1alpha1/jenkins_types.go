@@ -13,6 +13,7 @@ type JenkinsSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "operator-sdk generate k8s" to regenerate code after modifying this file
 	// Add custom validation using kubebuilder tags: https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html
+	Persistence JenkinsPersistence `json:"persistence"` // Configure Jenkins Persistence
 }
 
 // JenkinsStatus defines the observed state of Jenkins
@@ -32,8 +33,14 @@ type Jenkins struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   JenkinsSpec   `json:"spec,omitempty"`
+	Spec   JenkinsSpec   `json:"spec"`
 	Status JenkinsStatus `json:"status,omitempty"`
+}
+
+// Defines Persistence of Jenkins Instance
+type JenkinsPersistence struct {
+	Enabled bool   `json:"enabled"`
+	Size    string `json:"size,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

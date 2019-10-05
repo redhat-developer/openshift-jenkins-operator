@@ -50,7 +50,7 @@ const (
 	JenkinsNameLabel         = "name"
 
 	JenkinsPvcName         = "jenkins"
-	JenkinsPvcSize         = "1Gi"
+	JenkinsPvcDefaultSize  = "1Gi"
 	JenkinsVolumeName      = "jenkins-data"
 	JenkinsVolumeMountPath = "/var/lib/jenkins"
 )
@@ -104,8 +104,12 @@ func (r *JenkinsReconciler) Reconcile(request reconcile.Request) (reconcile.Resu
 		NamedResource{r.ControlledRescources.JenkinsService, r.ControlledRescources.JenkinsService.GetName()},
 		NamedResource{r.ControlledRescources.JNLPService, r.ControlledRescources.JNLPService.GetName()},
 		NamedResource{r.ControlledRescources.Route, r.ControlledRescources.Route.GetName()},
-		NamedResource{r.ControlledRescources.PersistentVolumeClaim, r.ControlledRescources.PersistentVolumeClaim.GetName()},
 		NamedResource{r.ControlledRescources.DeploymentConfig, r.ControlledRescources.DeploymentConfig.GetName()},
+	}
+
+	if r.isPersistent() {
+		r.ControlledRescources.PersistentVolumeClaim = newJenkinsPvc(r.ControlledRescources.JenkinsInstance, JenkinsInstanceName)
+		resourcesToWatch = append(resourcesToWatch, NamedResource{r.ControlledRescources.PersistentVolumeClaim, r.ControlledRescources.PersistentVolumeClaim.GetName()})
 	}
 
 	// Set reference and watch resources
@@ -141,14 +145,13 @@ func (r *JenkinsReconciler) updateResourcesOnWatch(resourcesToWatch []NamedResou
 
 func (r *JenkinsReconciler) createAllResources() {
 	// Define a DeploymentConfig
-	r.ControlledRescources.DeploymentConfig = newJenkinsDeploymentConfig(r.ControlledRescources.JenkinsInstance, JenkinsInstanceName, JenkinsInstanceName+JenkinsJnlpServiceSuffix)
+	r.ControlledRescources.DeploymentConfig = newJenkinsDeploymentConfig(r.ControlledRescources.JenkinsInstance, JenkinsInstanceName, JenkinsInstanceName+JenkinsJnlpServiceSuffix, r.ControlledRescources.JenkinsInstance.Spec.Persistence.Enabled)
 	// Define Jenkins Services
 	r.ControlledRescources.JenkinsService = r.getJenkinsService()
 	r.ControlledRescources.JNLPService = r.getJenkinsJNLPService()
 	// Define Route
 	r.ControlledRescources.Route = newJenkinsRoute(r.ControlledRescources.JenkinsInstance, r.ControlledRescources.JenkinsService)
-	// Define PVC
-	r.ControlledRescources.PersistentVolumeClaim = newJenkinsPvc(r.ControlledRescources.JenkinsInstance, JenkinsInstanceName)
+
 	// Create RBAC and manage
 	r.ControlledRescources.ServiceAccount = newJenkinsServiceAccount(r.ControlledRescources.JenkinsInstance, JenkinsInstanceName)
 	r.ControlledRescources.RoleBinding = newJenkinsRoleBinding(r.ControlledRescources.JenkinsInstance, JenkinsInstanceName)
@@ -209,6 +212,10 @@ func (r *JenkinsReconciler) checkResourceIfExists(resource RuntimeResource) erro
 		return err
 	}
 	return err
+}
+
+func (r *JenkinsReconciler) isPersistent() bool {
+	return r.ControlledRescources.JenkinsInstance.Spec.Persistence.Enabled
 }
 
 func (r *JenkinsReconciler) createResource(resource RuntimeResource) {

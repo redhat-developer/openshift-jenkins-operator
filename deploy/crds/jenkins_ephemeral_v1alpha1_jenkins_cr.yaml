@@ -1,0 +1,7 @@
+apiVersion: jenkins.dev/v1alpha1
+kind: Jenkins
+metadata:
+  name: example-jenkins
+spec:
+  persistence: 
+    enabled: false

@@ -12,7 +12,7 @@ import (
 )
 
 // newDeploymentConfigForCR returns a jenkins DeploymentConfig with the same name/namespace as the cr
-func newJenkinsDeploymentConfig(cr *jenkinsv1alpha1.Jenkins, jenkinsService, jenkinsJNLPService string) *appsv1.DeploymentConfig {
+func newJenkinsDeploymentConfig(cr *jenkinsv1alpha1.Jenkins, jenkinsService, jenkinsJNLPService string, isPersistent bool) *appsv1.DeploymentConfig {
 	labels := map[string]string{
 		JenkinsAppLabelName: cr.Name,
 		JenkinsNameLabel:    JenkinsContainerName,
@@ -33,6 +33,7 @@ func newJenkinsDeploymentConfig(cr *jenkinsv1alpha1.Jenkins, jenkinsService, jen
 
 	livenessProbe := newProbe("/login", 8080, 420, 240, 360)
 	readinessProbe := newProbe("/login", 8080, 3, 240, 0)
+	jenkinsVolume := newVolume(isPersistent)
 
 	dc := &appsv1.DeploymentConfig{
 		ObjectMeta: metav1.ObjectMeta{
@@ -68,13 +69,7 @@ func newJenkinsDeploymentConfig(cr *jenkinsv1alpha1.Jenkins, jenkinsService, jen
 						},
 					},
 					Volumes: []corev1.Volume{
-						{
-							Name: JenkinsVolumeName,
-							VolumeSource: corev1.VolumeSource{
-								PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-									ClaimName: jenkinsInstanceName},
-							},
-						},
+						*jenkinsVolume,
 					},
 					ServiceAccountName: jenkinsInstanceName,
 				},
@@ -142,8 +137,32 @@ func newJenkinsRoute(cr *jenkinsv1alpha1.Jenkins, svc *corev1.Service) *routev1.
 	}
 }
 
+func newVolume(isPersistent bool) *corev1.Volume {
+	volume := &corev1.Volume{}
+	volume.Name = JenkinsVolumeName
+
+	if isPersistent {
+		// Define PVC
+		volume.PersistentVolumeClaim = newJenkinsPvcVolumeSource()
+	} else {
+		volume.EmptyDir = newJenkinsEmptyDirVolumeSource()
+	}
+
+	return volume
+}
+
+func newJenkinsPvcVolumeSource() *corev1.PersistentVolumeClaimVolumeSource {
+	return &corev1.PersistentVolumeClaimVolumeSource{
+		ClaimName: JenkinsInstanceName,
+	}
+}
+
 func newJenkinsPvc(cr *jenkinsv1alpha1.Jenkins, name string) *corev1.PersistentVolumeClaim {
+	JenkinsPvcSize := JenkinsPvcDefaultSize
 	accessModes := []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}
+	if len(cr.Spec.Persistence.Size) > 0 {
+		JenkinsPvcSize = cr.Spec.Persistence.Size
+	}
 	var quantity = resource.MustParse(JenkinsPvcSize)
 	resources := corev1.ResourceRequirements{Requests: corev1.ResourceList{corev1.ResourceStorage: quantity}}
 	pvc := &corev1.PersistentVolumeClaim{
@@ -158,6 +177,12 @@ func newJenkinsPvc(cr *jenkinsv1alpha1.Jenkins, name string) *corev1.PersistentV
 	}
 
 	return pvc
+}
+
+func newJenkinsEmptyDirVolumeSource() *corev1.EmptyDirVolumeSource {
+	return &corev1.EmptyDirVolumeSource{
+		Medium: corev1.StorageMediumDefault,
+	}
 }
 
 func newJenkinsServiceAccount(cr *jenkinsv1alpha1.Jenkins, name string) *corev1.ServiceAccount {
