@@ -1,5 +1,8 @@
 [![Docker Repository on Quay](https://quay.io/repository/redhat-developer/openshift-jenkins-operator/status "Docker Repository on Quay")](https://quay.io/repository/redhat-developer/openshift-jenkins-operator)
 
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=akram_openshift-jenkins-operator&metric=alert_status)](https://sonarcloud.io/dashboard?id=akram_openshift-jenkins-operator)
+
+
 # openshift-jenkins-operator
 An operator-managed OpenShift Jenkins for OpenShift 4.x
 
