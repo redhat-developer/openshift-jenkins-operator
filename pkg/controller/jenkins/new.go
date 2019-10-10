@@ -216,7 +216,7 @@ func newJenkinsRoleBinding(cr *jenkinsv1alpha1.Jenkins, jenkinsServiceAccountNam
 			Labels:    labels,
 		},
 		RoleRef: rbacv1.RoleRef{
-			Kind:     "Role",
+			Kind:     "ClusterRole",
 			Name:     "edit",
 			APIGroup: "rbac.authorization.k8s.io",
 		},
