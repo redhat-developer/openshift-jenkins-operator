@@ -104,7 +104,8 @@ func (r *JenkinsReconciler) Reconcile(request reconcile.Request) (reconcile.Resu
 		NamedResource{r.ControlledRescources.JenkinsService, r.ControlledRescources.JenkinsService.GetName()},
 		NamedResource{r.ControlledRescources.JNLPService, r.ControlledRescources.JNLPService.GetName()},
 		NamedResource{r.ControlledRescources.Route, r.ControlledRescources.Route.GetName()},
-		NamedResource{r.ControlledRescources.DeploymentConfig, r.ControlledRescources.DeploymentConfig.GetName()},
+		//NamedResource{r.ControlledRescources.DeploymentConfig, r.ControlledRescources.DeploymentConfig.GetName()},
+		NamedResource{r.ControlledRescources.Deployment, r.ControlledRescources.Deployment.GetName()},
 	}
 
 	if r.isPersistent() {
@@ -145,7 +146,10 @@ func (r *JenkinsReconciler) updateResourcesOnWatch(resourcesToWatch []NamedResou
 
 func (r *JenkinsReconciler) createAllResources() {
 	// Define a DeploymentConfig
-	r.ControlledRescources.DeploymentConfig = newJenkinsDeploymentConfig(r.ControlledRescources.JenkinsInstance, JenkinsInstanceName, JenkinsInstanceName+JenkinsJnlpServiceSuffix, r.ControlledRescources.JenkinsInstance.Spec.Persistence.Enabled)
+	//r.ControlledRescources.DeploymentConfig = newJenkinsDeploymentConfig(r.ControlledRescources.JenkinsInstance, JenkinsInstanceName, JenkinsInstanceName+JenkinsJnlpServiceSuffix, r.ControlledRescources.JenkinsInstance.Spec.Persistence.Enabled)
+
+	// Define a Deployment
+	r.ControlledRescources.Deployment = newJenkinsDeployment(r.ControlledRescources.JenkinsInstance, JenkinsInstanceName, JenkinsInstanceName+JenkinsJnlpServiceSuffix, r.ControlledRescources.JenkinsInstance.Spec.Persistence.Enabled)
 	// Define Jenkins Services
 	r.ControlledRescources.JenkinsService = r.getJenkinsService()
 	r.ControlledRescources.JNLPService = r.getJenkinsJNLPService()
@@ -167,7 +171,7 @@ func (r *JenkinsReconciler) getJenkinsService() *corev1.Service {
 			StrVal: JenkinsWebPortAsStr,
 		},
 	}
-	return newJenkinsService(r.ControlledRescources.JenkinsInstance, JenkinsInstanceName, jenkinsPort) // jenkins service
+	return newJenkinsService(r.ControlledRescources.JenkinsInstance, JenkinsInstanceName, jenkinsPort)
 }
 
 func (r *JenkinsReconciler) getJenkinsJNLPService() *corev1.Service {
@@ -185,7 +189,7 @@ func (r *JenkinsReconciler) getJenkinsJNLPService() *corev1.Service {
 
 func (r *JenkinsReconciler) createResourceIfNotPresent(resource RuntimeResource) error {
 	namespaceNameLog := "| Namespace " + resource.NamespacedName.Namespace + " | Name " + resource.NamespacedName.Name
-	message := "createResourceIfNotPresent\n" + namespaceNameLog
+	message := "createResourceIfNotPresent: " + namespaceNameLog
 	noRequeueMessage := message + " REQUEUE DISABLED "
 
 	r.Messages.LogInfo(message, logReconciler)
@@ -203,7 +207,7 @@ func (r *JenkinsReconciler) createResourceIfNotPresent(resource RuntimeResource)
 
 func (r *JenkinsReconciler) checkResourceIfExists(resource RuntimeResource) error {
 	namespaceNameLog := "| Namespace " + resource.NamespacedName.Namespace + " | Name " + resource.NamespacedName.Name
-	message := "checkResourceIfExists\n" + namespaceNameLog
+	message := "checkResourceIfExists: " + namespaceNameLog
 
 	r.Messages.LogInfo(message, logReconciler)
 	err := r.Client.Get(context.TODO(), resource.NamespacedName, resource.Object)
@@ -220,7 +224,7 @@ func (r *JenkinsReconciler) isPersistent() bool {
 
 func (r *JenkinsReconciler) createResource(resource RuntimeResource) {
 	namespaceNameLog := "| Namespace " + resource.NamespacedName.Namespace + " | Name " + resource.NamespacedName.Name
-	message := "createResource\n" + namespaceNameLog
+	message := "createResource: " + namespaceNameLog
 	requeueMessage := message + " REQUEUE ENABLED "
 
 	r.Messages.LogInfo(message, logReconciler)

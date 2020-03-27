@@ -9,6 +9,7 @@ import (
 	routev1 "github.com/openshift/api/route/v1"
 	jenkinsv1alpha1 "github.com/redhat-developer/openshift-jenkins-operator/pkg/apis/jenkins/v1alpha1"
 	common "github.com/redhat-developer/openshift-jenkins-operator/pkg/common"
+	kappsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 
@@ -33,6 +34,7 @@ const JenkinsControllerName = "jenkins-controller"
 type ControlledResources struct {
 	JenkinsInstance       *jenkinsv1alpha1.Jenkins
 	DeploymentConfig      *appsv1.DeploymentConfig
+	Deployment            *kappsv1.Deployment
 	ImageStream           *imagev1.ImageStream
 	JenkinsService        *corev1.Service
 	JNLPService           *corev1.Service
@@ -78,6 +80,7 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	resourcesToWatch := []NamedResource{
 		NamedResource{ownerRef, ""},
 		NamedResource{&appsv1.DeploymentConfig{}, ""},
+		NamedResource{&kappsv1.Deployment{}, ""},
 		NamedResource{&imagev1.ImageStream{}, ""},
 		NamedResource{&corev1.ServiceAccount{}, ""},
 		NamedResource{&corev1.PersistentVolumeClaim{}, ""},

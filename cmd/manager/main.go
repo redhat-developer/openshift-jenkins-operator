@@ -8,8 +8,13 @@ import (
 	"reflect"
 	"runtime"
 
+	uzap "go.uber.org/zap"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/client-go/rest"
+
+	"github.com/go-logr/logr"
+	"github.com/go-logr/zapr"
+	"github.com/golang/glog"
 
 	"github.com/redhat-developer/openshift-jenkins-operator/pkg/apis"
 	jenkinscontroller "github.com/redhat-developer/openshift-jenkins-operator/pkg/controller"
@@ -25,11 +30,10 @@ import (
 	"github.com/operator-framework/operator-sdk/pkg/restmapper"
 	sdkVersion "github.com/operator-framework/operator-sdk/version"
 	"github.com/spf13/pflag"
+	kappsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
-
-	//	k8smanager "sigs.k8s.io/controller-runtime/pkg/manager"
 
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
@@ -49,8 +53,10 @@ func main() {
 	// Add the zap logger flag set to the CLI.
 	pflag.CommandLine.AddFlagSet(zap.FlagSet())
 	pflag.CommandLine.AddGoFlagSet(flag.CommandLine)
+	debug := pflag.Bool("debug", false, "Set log level to debug")
+
 	pflag.Parse()
-	logf.SetLogger(zap.Logger())
+	logf.SetLogger(zapLogger(*debug))
 	printVersion()
 
 	namespace := ""          // namespace is set to empty string so we can watch all namespaces
@@ -66,6 +72,7 @@ func main() {
 	registerComponentOrExit(mgr, routev1.AddToScheme) // Adding the routev1 api
 	registerComponentOrExit(mgr, apis.AddToScheme)    // Setup Scheme for all resources
 	registerComponentOrExit(mgr, corev1.AddToScheme)  // Adding the corev1 api
+	registerComponentOrExit(mgr, kappsv1.AddToScheme) // Adding the kappsv1 api for Deployment
 	log.Info("All components registered successfully.")
 
 	// Setup all Controllers , add here other calls to your controllers
@@ -194,4 +201,25 @@ func serveCRMetrics(cfg *rest.Config) error {
 		return err
 	}
 	return nil
+}
+
+func zapLogger(debug bool) logr.Logger {
+	var zapLog *uzap.Logger
+	var err error
+	zapLogCfg := uzap.NewDevelopmentConfig()
+	if debug {
+		zapLogCfg.Level = uzap.NewAtomicLevelAt(uzap.DebugLevel)
+	} else {
+		zapLogCfg.Level = uzap.NewAtomicLevelAt(uzap.InfoLevel)
+	}
+	zapLog, err = zapLogCfg.Build(uzap.AddStacktrace(uzap.DPanicLevel), uzap.AddCallerSkip(1))
+	// who watches the watchmen?
+	fatalIfErr(err, glog.Fatalf)
+	return zapr.NewLogger(zapLog)
+}
+
+func fatalIfErr(err error, f func(format string, v ...interface{})) {
+	if err != nil {
+		f("unable to construct the logger: %v", err)
+	}
 }
