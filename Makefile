@@ -4,18 +4,16 @@ NAMESPACE=jenkins-operator
 
 ##@ Application
 install: ## Install all resources (CR/CRD's, RBAC and Operator)
-	@echo ....... Creating namespace ....... 
+	@echo ....... Creating namespace .......
 	- kubectl create namespace ${NAMESPACE}
 	@echo ....... Applying CRDs .......
-	- kubectl apply -f deploy/crds/jenkins.dev_jenkins_crd.yaml -n ${NAMESPACE}
+	- kubectl apply -f deploy/crds/jenkins_v1alpha1_jenkins_crd.yaml -n ${NAMESPACE}
 	@echo ....... Applying Rules and Service Account .......
 	- kubectl apply -f deploy/role.yaml -n ${NAMESPACE}
 	- kubectl apply -f deploy/role_binding.yaml  -n ${NAMESPACE}
 	- kubectl apply -f deploy/service_account.yaml  -n ${NAMESPACE}
 	@echo ....... Applying Operator .......
 	- kubectl apply -f deploy/operator.yaml -n ${NAMESPACE}
-	@echo ....... Creating the CRs .......
-	- kubectl apply -f deploy/crds/jenkins.dev_v1alpha1_jenkins_cr.yaml -n ${NAMESPACE}
 
 uninstall: ## Uninstall all that all performed in the $ make install
 	@echo ....... Uninstalling .......
@@ -32,6 +30,8 @@ uninstall: ## Uninstall all that all performed in the $ make install
 
 ##@ Development
 run-local: ## Run the operator locally while connecting to a remote k8s cluster
+	kubectl delete -f deploy/crds/jenkins_v1alpha1_jenkins_crd.yaml
+	kubectl apply -f deploy/crds/jenkins_v1alpha1_jenkins_crd.yaml
 	operator-sdk run --local --operator-flags --debug=true
 
 code-vet: ## Run go vet for this project. More info: https://golang.org/cmd/vet/
@@ -57,7 +57,7 @@ code-gen: ## Run the operator-sdk commands to generated code (k8s and openapi)
 ##@ Tests
 test-unit: ## Run unit tests
 	$(info Running unit test: $@)
-	@go test $$( go list ./...|grep -v e2e ) -v 
+	@go test $$( go list ./...|grep -v e2e ) -v
 
 test-e2e: ## Run integration e2e tests with different options.
 	@echo ... Running the same e2e tests with different args ...
