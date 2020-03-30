@@ -23,7 +23,7 @@ export KUBECONFIG=/home/user/path/to/kubeconfig`
 
 Then run this command to run the operator:
 ``` bash
-make local
+make run-local
 ```
 ## Access the Jenkins web UI when Running Locally
 
@@ -31,7 +31,7 @@ Follow these steps to access the Jenkins web UI:
 
 First, create the Jenkins custom resource (CR):
 ``` bash
-oc create -f deploy/crds/jenkins_v1alpha1_jenkins_cr.yaml
+oc create -f deploy/crds/jenkins_ephemeral_v1alpha1_jenkins_cr.yaml
 jenkins.jenkins.dev/example-jenkins created
 ```
 Second, identify the route to the Jenkins console:
