@@ -22,6 +22,7 @@ func schema_pkg_apis_jenkins_v1alpha1_Jenkins(ref common.ReferenceCallback) comm
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "Jenkins is the Schema for the jenkins API",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
 						SchemaProps: spec.SchemaProps{
@@ -53,6 +54,7 @@ func schema_pkg_apis_jenkins_v1alpha1_Jenkins(ref common.ReferenceCallback) comm
 						},
 					},
 				},
+				Required: []string{"spec"},
 			},
 		},
 		Dependencies: []string{
@@ -65,10 +67,20 @@ func schema_pkg_apis_jenkins_v1alpha1_JenkinsSpec(ref common.ReferenceCallback) 
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "JenkinsSpec defines the desired state of Jenkins",
-				Properties:  map[string]spec.Schema{},
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"persistence": {
+						SchemaProps: spec.SchemaProps{
+							Description: "INSERT ADDITIONAL SPEC FIELDS - desired state of cluster Important: Run \"operator-sdk generate k8s\" to regenerate code after modifying this file Add custom validation using kubebuilder tags: https://book-v1.book.kubebuilder.io/beyond_basics/generating_crd.html",
+							Ref:         ref("github.com/redhat-developer/openshift-jenkins-operator/pkg/apis/jenkins/v1alpha1.JenkinsPersistence"),
+						},
+					},
+				},
+				Required: []string{"persistence"},
 			},
 		},
-		Dependencies: []string{},
+		Dependencies: []string{
+			"github.com/redhat-developer/openshift-jenkins-operator/pkg/apis/jenkins/v1alpha1.JenkinsPersistence"},
 	}
 }
 
@@ -77,9 +89,8 @@ func schema_pkg_apis_jenkins_v1alpha1_JenkinsStatus(ref common.ReferenceCallback
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
 				Description: "JenkinsStatus defines the observed state of Jenkins",
-				Properties:  map[string]spec.Schema{},
+				Type:        []string{"object"},
 			},
 		},
-		Dependencies: []string{},
 	}
 }

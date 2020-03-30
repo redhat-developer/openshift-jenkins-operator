@@ -7,7 +7,7 @@ install: ## Install all resources (CR/CRD's, RBAC and Operator)
 	@echo ....... Creating namespace .......
 	- kubectl create namespace ${NAMESPACE}
 	@echo ....... Applying CRDs .......
-	- kubectl apply -f deploy/crds/jenkins_v1alpha1_jenkins_crd.yaml -n ${NAMESPACE}
+	- kubectl apply -f deploy/crds/jenkins_v1alpha1_jenkins_crd.yaml -n ${NAMESPACE} 
 	@echo ....... Applying Rules and Service Account .......
 	- kubectl apply -f deploy/role.yaml -n ${NAMESPACE}
 	- kubectl apply -f deploy/role_binding.yaml  -n ${NAMESPACE}
@@ -18,7 +18,7 @@ install: ## Install all resources (CR/CRD's, RBAC and Operator)
 uninstall: ## Uninstall all that all performed in the $ make install
 	@echo ....... Uninstalling .......
 	@echo ....... Deleting CRDs.......
-	- kubectl delete -f deploy/crds/jenkins.dev_jenkins_crd.yaml -n ${NAMESPACE}
+	- kubectl delete -f deploy/crds/jenkins.dev_jenkins_crd.yaml -n ${NAMESPACE} 
 	@echo ....... Deleting Rules and Service Account .......
 	- kubectl delete -f deploy/role.yaml -n ${NAMESPACE}
 	- kubectl delete -f deploy/role_binding.yaml -n ${NAMESPACE}
@@ -30,8 +30,8 @@ uninstall: ## Uninstall all that all performed in the $ make install
 
 ##@ Development
 run-local: ## Run the operator locally while connecting to a remote k8s cluster
-	kubectl delete -f deploy/crds/jenkins_v1alpha1_jenkins_crd.yaml
-	kubectl apply -f deploy/crds/jenkins_v1alpha1_jenkins_crd.yaml
+	kubectl delete -f deploy/crds/jenkins_v1alpha1_jenkins_crd.yaml -n ${NAMESPACE}
+	kubectl apply -f deploy/crds/jenkins_v1alpha1_jenkins_crd.yaml -n ${NAMESPACE}
 	operator-sdk run --local --operator-flags --debug=true
 
 code-vet: ## Run go vet for this project. More info: https://golang.org/cmd/vet/
