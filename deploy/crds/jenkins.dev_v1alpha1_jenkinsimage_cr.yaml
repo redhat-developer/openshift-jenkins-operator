@@ -1,0 +1,7 @@
+apiVersion: jenkins.dev/v1alpha1
+kind: JenkinsImage
+metadata:
+  name: example-jenkinsimage
+spec:
+  # Add fields here
+  size: 3

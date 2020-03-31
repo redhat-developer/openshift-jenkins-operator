@@ -19,7 +19,7 @@ rules:
   verbs:
   - '*'
 - apiGroups:
-  - ''
+  - ""
   resources:
   - pods
   - services
@@ -56,7 +56,7 @@ rules:
   verbs:
   - update
 - apiGroups:
-  - ''
+  - ""
   resources:
   - pods
   verbs:
@@ -71,5 +71,6 @@ rules:
   - jenkins.dev
   resources:
   - '*'
+  - jenkinsimages
   verbs:
   - '*'

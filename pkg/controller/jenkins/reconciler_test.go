@@ -73,3 +73,4 @@ func TestNewJenkinsDeploymentConfig(t *testing.T) {
 
 	})
 }
+
