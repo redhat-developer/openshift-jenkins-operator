@@ -9,6 +9,7 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	resource "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	//labels "k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/intstr"
 )
@@ -18,7 +19,7 @@ func newJenkinsDeploymentConfig(cr *jenkinsv1alpha1.Jenkins, jenkinsService, jen
 	jenkinsInstanceName := cr.Name
 	labels := map[string]string{
 		JenkinsAppLabelName: cr.Name,
-		JenkinsNameLabel:    JenkinsContainerName,
+		JenkinsNameLabel:    cr.Name,
 	}
 	podTemplate := newPodTemplateSpec(cr, jenkinsService, jenkinsJNLPService, isPersistent)
 	dc := &appsv1.DeploymentConfig{
@@ -39,7 +40,7 @@ func newJenkinsDeploymentConfig(cr *jenkinsv1alpha1.Jenkins, jenkinsService, jen
 
 // newJenkinsDeployment returns a jenkins Deployment with the same name/namespace as the cr
 func newJenkinsDeployment(cr *jenkinsv1alpha1.Jenkins, jenkinsService, jenkinsJNLPService string, isPersistent bool) *kappsv1.Deployment {
-	jenkinsInstanceName := cr.Name + "-deployment"
+	jenkinsInstanceName := cr.Name
 	labels := map[string]string{
 		JenkinsAppLabelName: cr.Name,
 		JenkinsNameLabel:    cr.Name,

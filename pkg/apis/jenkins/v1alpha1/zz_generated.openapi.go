@@ -75,6 +75,13 @@ func schema_pkg_apis_jenkins_v1alpha1_JenkinsSpec(ref common.ReferenceCallback) 
 							Ref:         ref("github.com/redhat-developer/openshift-jenkins-operator/pkg/apis/jenkins/v1alpha1.JenkinsPersistence"),
 						},
 					},
+					"useDeploymentConfig": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Configure Jenkins Persistence",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 				},
 				Required: []string{"persistence"},
 			},

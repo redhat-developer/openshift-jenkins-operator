@@ -44,6 +44,8 @@ spec:
               required:
               - enabled
               type: object
+            useDeploymentConfig:
+              type: boolean
           required:
           - persistence
           type: object

@@ -3,6 +3,7 @@ kind: Jenkins
 metadata:
   name: example-jenkins
 spec:
-  useDeploymentConfig: true
+  useDeployememtConfig: true
   persistence: 
-    enabled: false
+    enabled: true
+    size: 3Gi

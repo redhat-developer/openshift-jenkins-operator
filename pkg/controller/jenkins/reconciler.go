@@ -104,8 +104,16 @@ func (r *JenkinsReconciler) Reconcile(request reconcile.Request) (reconcile.Resu
 		NamedResource{r.ControlledRescources.JenkinsService, r.ControlledRescources.JenkinsService.GetName()},
 		NamedResource{r.ControlledRescources.JNLPService, r.ControlledRescources.JNLPService.GetName()},
 		NamedResource{r.ControlledRescources.Route, r.ControlledRescources.Route.GetName()},
-		//NamedResource{r.ControlledRescources.DeploymentConfig, r.ControlledRescources.DeploymentConfig.GetName()},
-		NamedResource{r.ControlledRescources.Deployment, r.ControlledRescources.Deployment.GetName()},
+	}
+
+	if r.ControlledRescources.JenkinsInstance.Spec.UseDeploymentConfig {
+		resourcesToWatch = append(resourcesToWatch,
+			NamedResource{r.ControlledRescources.DeploymentConfig, r.ControlledRescources.DeploymentConfig.GetName()},
+		)
+	} else {
+		resourcesToWatch = append(resourcesToWatch,
+			NamedResource{r.ControlledRescources.Deployment, r.ControlledRescources.Deployment.GetName()},
+		)
 	}
 
 	if r.isPersistent() {
@@ -148,8 +156,12 @@ func (r *JenkinsReconciler) createAllResources() {
 	// Define a DeploymentConfig
 	//r.ControlledRescources.DeploymentConfig = newJenkinsDeploymentConfig(r.ControlledRescources.JenkinsInstance, JenkinsInstanceName, JenkinsInstanceName+JenkinsJnlpServiceSuffix, r.ControlledRescources.JenkinsInstance.Spec.Persistence.Enabled)
 
-	// Define a Deployment
-	r.ControlledRescources.Deployment = newJenkinsDeployment(r.ControlledRescources.JenkinsInstance, JenkinsInstanceName, JenkinsInstanceName+JenkinsJnlpServiceSuffix, r.ControlledRescources.JenkinsInstance.Spec.Persistence.Enabled)
+	if r.ControlledRescources.JenkinsInstance.Spec.UseDeploymentConfig {
+		r.ControlledRescources.DeploymentConfig = newJenkinsDeploymentConfig(r.ControlledRescources.JenkinsInstance, JenkinsInstanceName, JenkinsInstanceName+JenkinsJnlpServiceSuffix, r.ControlledRescources.JenkinsInstance.Spec.Persistence.Enabled)
+	} else {
+		r.ControlledRescources.Deployment = newJenkinsDeployment(r.ControlledRescources.JenkinsInstance, JenkinsInstanceName, JenkinsInstanceName+JenkinsJnlpServiceSuffix, r.ControlledRescources.JenkinsInstance.Spec.Persistence.Enabled)
+
+	}
 	// Define Jenkins Services
 	r.ControlledRescources.JenkinsService = r.getJenkinsService()
 	r.ControlledRescources.JNLPService = r.getJenkinsJNLPService()
