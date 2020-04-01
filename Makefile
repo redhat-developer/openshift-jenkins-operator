@@ -30,7 +30,7 @@ uninstall: ## Uninstall all that all performed in the $ make install
 
 ##@ Development
 run-local: ## Run the operator locally while connecting to a remote k8s cluster
-	kubectl delete -f deploy/crds/jenkins_v1alpha1_jenkins_crd.yaml -n ${NAMESPACE}
+	kubectl delete -f deploy/crds/jenkins_v1alpha1_jenkins_crd.yaml -n ${NAMESPACE} || true
 	kubectl apply -f deploy/crds/jenkins_v1alpha1_jenkins_crd.yaml -n ${NAMESPACE}
 	operator-sdk run --local --operator-flags --debug=true
 

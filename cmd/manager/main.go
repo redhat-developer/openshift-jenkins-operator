@@ -18,8 +18,10 @@ import (
 
 	"github.com/redhat-developer/openshift-jenkins-operator/pkg/apis"
 	jenkinscontroller "github.com/redhat-developer/openshift-jenkins-operator/pkg/controller"
+	jenkinsimage "github.com/redhat-developer/openshift-jenkins-operator/pkg/controller/jenkinsimage"
 
 	appsv1 "github.com/openshift/api/apps/v1"
+	buildv1 "github.com/openshift/api/build/v1"
 	imagev1 "github.com/openshift/api/image/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	"github.com/operator-framework/operator-sdk/pkg/k8sutil"
@@ -70,14 +72,15 @@ func main() {
 	registerComponentOrExit(mgr, appsv1.AddToScheme)  // Adding the appsv1 api
 	registerComponentOrExit(mgr, imagev1.AddToScheme) // Adding the imagev1 api
 	registerComponentOrExit(mgr, routev1.AddToScheme) // Adding the routev1 api
-	registerComponentOrExit(mgr, apis.AddToScheme)    // Setup Scheme for all resources
 	registerComponentOrExit(mgr, corev1.AddToScheme)  // Adding the corev1 api
 	registerComponentOrExit(mgr, kappsv1.AddToScheme) // Adding the kappsv1 api for Deployment
+	registerComponentOrExit(mgr, buildv1.AddToScheme) // Adding the kappsv1 api for Deployment
 	log.Info("All components registered successfully.")
 
 	// Setup all Controllers , add here other calls to your controllers
 	log.Info("Registering controllers.")
 	setupControllerOrExit(mgr, jenkinscontroller.AddToManager) // Setup jenkins-controller
+	setupControllerOrExit(mgr, jenkinsimage.Add) // Setup jenkinsimage-controller
 	log.Info("All controllers registered successfully.")
 
 	log.Info("Intializing metrics server")

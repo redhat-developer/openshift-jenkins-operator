@@ -4,4 +4,7 @@ metadata:
   name: example-jenkinsimage
 spec:
   # Add fields here
-  size: 3
+  plugins:
+  - name: blueocean
+    version: 1.3.0
+

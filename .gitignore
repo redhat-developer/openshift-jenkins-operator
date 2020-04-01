@@ -1,4 +1,5 @@
 # temporary Build Files
+kubeconfig
 build/_output
 build/_test
 build/bin
