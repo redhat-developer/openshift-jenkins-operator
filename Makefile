@@ -7,7 +7,8 @@ install: ## Install all resources (CR/CRD's, RBAC and Operator)
 	@echo ....... Creating namespace .......
 	- kubectl create namespace ${NAMESPACE}
 	@echo ....... Applying CRDs .......
-	- kubectl apply -f deploy/crds/jenkins_v1alpha1_jenkins_crd.yaml -n ${NAMESPACE} 
+	- kubectl apply -f deploy/crds/jenkins_v1alpha1_jenkins_crd.yaml -n ${NAMESPACE}
+	- kubectl apply -f deploy/crds/jenkins.dev_jenkinsimages_crd.yaml -n ${NAMESPACE}
 	@echo ....... Applying Rules and Service Account .......
 	- kubectl apply -f deploy/role.yaml -n ${NAMESPACE}
 	- kubectl apply -f deploy/role_binding.yaml  -n ${NAMESPACE}
@@ -18,20 +19,25 @@ install: ## Install all resources (CR/CRD's, RBAC and Operator)
 uninstall: ## Uninstall all that all performed in the $ make install
 	@echo ....... Uninstalling .......
 	@echo ....... Deleting CRDs.......
-	- kubectl delete -f deploy/crds/jenkins.dev_jenkins_crd.yaml -n ${NAMESPACE} 
+	- kubectl delete -f deploy/crds/jenkins.dev_jenkins_crd.yaml -n ${NAMESPACE} &
+	- kubectl delete -f deploy/crds/jenkins.dev_jenkinsimages_crd.yaml -n ${NAMESPACE} &
 	@echo ....... Deleting Rules and Service Account .......
-	- kubectl delete -f deploy/role.yaml -n ${NAMESPACE}
-	- kubectl delete -f deploy/role_binding.yaml -n ${NAMESPACE}
-	- kubectl delete -f deploy/service_account.yaml -n ${NAMESPACE}
+	- kubectl delete -f deploy/role.yaml -n ${NAMESPACE} &
+	- kubectl delete -f deploy/role_binding.yaml -n ${NAMESPACE} &
+	- kubectl delete -f deploy/service_account.yaml -n ${NAMESPACE} &
 	@echo ....... Deleting Operator .......
-	- kubectl delete -f deploy/operator.yaml -n ${NAMESPACE}
+	- kubectl delete -f deploy/operator.yaml -n ${NAMESPACE} &
 	@echo ....... Deleting namespace ${NAMESPACE}.......
-	- kubectl delete namespace ${NAMESPACE}
+	- kubectl delete namespace ${NAMESPACE} &
 
 ##@ Development
 run-local: ## Run the operator locally while connecting to a remote k8s cluster
-	kubectl delete -f deploy/crds/jenkins_v1alpha1_jenkins_crd.yaml -n ${NAMESPACE} || true
+	@echo ....... Deleting Preexisting CRDs if any .......
+	kubectl delete -f deploy/crds/jenkins_v1alpha1_jenkins_crd.yaml -n ${NAMESPACE} &	
+	kubectl delete -f deploy/crds/jenkins.dev_jenkinsimages_crd.yaml -n ${NAMESPACE} &
+	@echo ....... Creating CRDs .......
 	kubectl apply -f deploy/crds/jenkins_v1alpha1_jenkins_crd.yaml -n ${NAMESPACE}
+	kubectl apply -f deploy/crds/jenkins.dev_jenkinsimages_crd.yaml -n ${NAMESPACE}
 	operator-sdk run --local --operator-flags --debug=true
 
 code-vet: ## Run go vet for this project. More info: https://golang.org/cmd/vet/
