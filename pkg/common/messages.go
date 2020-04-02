@@ -9,20 +9,12 @@ type Messages struct {
 	Info     []string
 	Warnings []string
 	Errors   []error
+	Description string
 }
-
-/*
-
-TODO:
-	Messages for Warning, and based on what are we warning, should there be a pattern
-	Info messages keep coming
-	Error messages Error out and give a stack trace of all the messages
-
-	We should be able to configure the log output to be routed to a logging server through the CR
-*/
 
 func NewMessages(description string) *Messages {
 	messages := Messages{}
+	messages.Description = description
 	messages.Info = []string{}
 	messages.Warnings = []string{}
 	messages.Errors = []error{}
@@ -38,8 +30,6 @@ func (m *Messages) LogWarning(message string, logger logr.Logger) {
 	m.Warnings = append(m.Warnings, message)
 	logger.V(2).Info(message)
 }
-
-// TODO : Implement passing the errors forward on the chain
 
 func (m *Messages) LogError(err error, message string, logger logr.Logger) {
 	m.Errors = append(m.Errors, err)

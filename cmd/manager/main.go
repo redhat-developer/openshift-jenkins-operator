@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/redhat-developer/openshift-jenkins-operator/pkg/controller/controllerutil"
 	"os"
 	"reflect"
 	"runtime"
@@ -17,7 +18,6 @@ import (
 	"github.com/golang/glog"
 
 	"github.com/redhat-developer/openshift-jenkins-operator/pkg/apis"
-	jenkinscontroller "github.com/redhat-developer/openshift-jenkins-operator/pkg/controller"
 	jenkinsimage "github.com/redhat-developer/openshift-jenkins-operator/pkg/controller/jenkinsimage"
 
 	appsv1 "github.com/openshift/api/apps/v1"
@@ -79,8 +79,8 @@ func main() {
 
 	// Setup all Controllers , add here other calls to your controllers
 	log.Info("Registering controllers.")
-	setupControllerOrExit(mgr, jenkinscontroller.AddToManager) // Setup jenkins-controller
-	setupControllerOrExit(mgr, jenkinsimage.Add) // Setup jenkinsimage-controller
+	setupControllerOrExit(mgr, controllerutil.AddToManager) // Setup jenkins-controller
+	setupControllerOrExit(mgr, jenkinsimage.Add)            // Setup jenkinsimage-controller
 	log.Info("All controllers registered successfully.")
 
 	log.Info("Intializing metrics server")

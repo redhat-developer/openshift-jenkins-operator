@@ -2,30 +2,34 @@ package jenkinsimage
 
 import (
 	"context"
-
-	jenkinsv1alpha1 "github.com/redhat-developer/openshift-jenkins-operator/pkg/apis/jenkins/v1alpha1"
-	corev1 "k8s.io/api/core/v1"
-	//appsv1 "github.com/openshift/api/apps/v1"
-	imagev1 "github.com/openshift/api/image/v1"
 	buildv1 "github.com/openshift/api/build/v1"
+	imagev1 "github.com/openshift/api/image/v1"
+	jenkinsv1alpha1 "github.com/redhat-developer/openshift-jenkins-operator/pkg/apis/jenkins/v1alpha1"
+	j "github.com/redhat-developer/openshift-jenkins-operator/pkg/controller/controllerutil"
 	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"reflect"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
-	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
+	logf "sigs.k8s.io/controller-runtime/pkg/runtime/log"
 )
 
+const (
+	ImageStreamTagKind      = "ImageStreamTag"
+	DockerImageKind         = "DockerImage"
+	ImageToTagSeparator     = ":"
+    ImageNameSeparator = "/"
+    DefaultRegistryHostname = "image-registry.openshift-image-registry.svc:5000"
+	DefaultImageNamespace   = "openshift"
+	DefaultJenkinsBaseImage = "jenkins" + ":" + "2"
+	DefaultImageStreamTag   = "latest"
+)
 
-const registryHostname = "image-registry.openshift-image-registry.svc:5000"
-
-var log = logf.Log.WithName("controller_jenkinsimage")
+var log = logf.Log.WithName("jenkinsimage_controller")
 
 // Add creates a new JenkinsImage Controller and adds it to the Manager. The Manager will set fields on the Controller
 // and Start it when the Manager is Started.
@@ -45,32 +49,22 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	if err != nil {
 		return err
 	}
-
-	// Watch for changes to primary resource JenkinsImage
-	err = c.Watch(&source.Kind{Type: &jenkinsv1alpha1.JenkinsImage{}}, &handler.EnqueueRequestForObject{})
-	if err != nil {
-		return err
+	// Create owner reference stating the owner of all the resources under the controller
+	ownerRef := &jenkinsv1alpha1.JenkinsImage{}
+	resourcesToWatch := []j.NamedResource{
+		j.NamedResource{ownerRef, ""},
+		j.NamedResource{&imagev1.ImageStream{}, ""},
+		j.NamedResource{&buildv1.BuildConfig{}, ""},
 	}
-
-	// Watch for changes to secondary resource and requeue the owner JenkinsImage
-	err = c.Watch(&source.Kind{Type: &imagev1.ImageStream{}}, &handler.EnqueueRequestForOwner{
-		IsController: true,
-		OwnerType:    &jenkinsv1alpha1.JenkinsImage{},
-	})
-	if err != nil {
-		return err
+	for _, resource := range resourcesToWatch {
+		ownerReference := ownerRef
+		if reflect.DeepEqual(resource.Object, ownerRef) {
+			ownerReference = nil
+		}
+		j.WatchResourceOrStackError(c, resource, ownerReference)
 	}
-
-	// Watch for changes to secondary resource and requeue the owner JenkinsImage
-	err = c.Watch(&source.Kind{Type: &buildv1.BuildConfig{}}, &handler.EnqueueRequestForOwner{
-		IsController: true,
-		OwnerType:    &jenkinsv1alpha1.JenkinsImage{},
-	})
-	if err != nil {
-		return err
-	}
-
 	return nil
+
 }
 
 // blank assignment to verify that ReconcileJenkinsImage implements reconcile.Reconciler
@@ -84,12 +78,7 @@ type ReconcileJenkinsImage struct {
 	scheme *runtime.Scheme
 }
 
-// Reconcile reads that state of the cluster for a JenkinsImage object and makes changes based on the state read
-// and what is in the JenkinsImage.Spec
-// TODO(user): Modify this Reconcile function to implement your Controller logic.  This example creates
-// a Pod as an example
-// Note:
-// The Controller will requeue the Request to be processed again if the returned error is non-nil or
+// The Controller will requeue the request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (r *ReconcileJenkinsImage) Reconcile(request reconcile.Request) (reconcile.Result, error) {
 	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
@@ -113,7 +102,7 @@ func (r *ReconcileJenkinsImage) Reconcile(request reconcile.Request) (reconcile.
 	imagestream := newImageStream(instance)
 	// Set JenkinsImage instance as the owner and controller
 	if err := controllerutil.SetControllerReference(instance, imagestream, r.scheme); err != nil {
-	return reconcile.Result{}, err
+		return reconcile.Result{}, err
 	}
 	// Check if this ImageStream already exists
 	isFound := &imagev1.ImageStream{}
@@ -129,7 +118,6 @@ func (r *ReconcileJenkinsImage) Reconcile(request reconcile.Request) (reconcile.
 	} else if err != nil {
 		return reconcile.Result{}, err
 	}
-
 
 	// Define a new buildConfig object
 	buildConfig := newBuildConfig(instance)
@@ -156,65 +144,4 @@ func (r *ReconcileJenkinsImage) Reconcile(request reconcile.Request) (reconcile.
 	// BuildConfig already exists - don't requeue
 	reqLogger.Info("Skip reconcile: BuildConfig already exists", "BuildConfig.Namespace", found.Namespace, "BuildConfig.Name", found.Name)
 	return reconcile.Result{}, nil
-}
-
-
-
-// newBuildConfg returns a BuildConfig with binatry source strategy using the source image or imagestream specified in the CR
-func newImageStream(cr *jenkinsv1alpha1.JenkinsImage) *imagev1.ImageStream {
-	// create imagerepo
-	imageName := registryHostname + "/" + cr.Namespace + "/" + cr.Name
-	is := &imagev1.ImageStream{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: cr.Name, 
-			Namespace: cr.Namespace,
-		},
-		Spec: imagev1.ImageStreamSpec{
-				DockerImageRepository: imageName,
-				Tags: []imagev1.TagReference{
-						{
-								Name: "latest",
-								From: &corev1.ObjectReference{
-										Kind: "DockerImage",
-										Name: imageName,
-								},
-						},
-				},
-		},
-	}
-	return is
-}
-
-// newBuildConfg returns a BuildConfig with binatry source strategy using the source image or imagestream specified in the CR
-func newBuildConfig(cr *jenkinsv1alpha1.JenkinsImage) *buildv1.BuildConfig {
-	bc := &buildv1.BuildConfig{		
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      cr.Name,
-				Namespace: cr.Namespace,
-			},
-			Spec: buildv1.BuildConfigSpec{
-				RunPolicy: buildv1.BuildRunPolicySerial,
-				CommonSpec: buildv1.CommonSpec{
-					Source: buildv1.BuildSource{
-						Binary: &buildv1.BinaryBuildSource{},
-					},
-					Strategy: buildv1.BuildStrategy{
-						SourceStrategy: &buildv1.SourceBuildStrategy{
-							From: corev1.ObjectReference{
-									Kind: "ImageStreamTag",
-									Name: "jenkins" + ":" + "2",
-									Namespace: "openshift",
-							},
-						},
-					},
-					Output: buildv1.BuildOutput{
-						To: &corev1.ObjectReference{
-								Kind: "ImageStreamTag",
-								Name: cr.Name + ":latest",
-						},
-					},
-				},
-			},
-		}
-	return bc
 }

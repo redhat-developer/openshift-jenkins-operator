@@ -7,6 +7,8 @@ import (
 	common "github.com/redhat-developer/openshift-jenkins-operator/pkg/common"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	j "github.com/redhat-developer/openshift-jenkins-operator/pkg/controller/controllerutil"
+
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	kubeerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -98,27 +100,27 @@ func (r *JenkinsReconciler) Reconcile(request reconcile.Request) (reconcile.Resu
 	r.createAllResources()
 
 	// Resources on Watch
-	resourcesToWatch := []NamedResource{
-		NamedResource{r.ControlledRescources.ServiceAccount, r.ControlledRescources.ServiceAccount.GetName()},
-		NamedResource{r.ControlledRescources.RoleBinding, r.ControlledRescources.RoleBinding.GetName()},
-		NamedResource{r.ControlledRescources.JenkinsService, r.ControlledRescources.JenkinsService.GetName()},
-		NamedResource{r.ControlledRescources.JNLPService, r.ControlledRescources.JNLPService.GetName()},
-		NamedResource{r.ControlledRescources.Route, r.ControlledRescources.Route.GetName()},
+	resourcesToWatch := []j.NamedResource{
+		j.NamedResource{r.ControlledRescources.ServiceAccount, r.ControlledRescources.ServiceAccount.GetName()},
+		j.NamedResource{r.ControlledRescources.RoleBinding, r.ControlledRescources.RoleBinding.GetName()},
+		j.NamedResource{r.ControlledRescources.JenkinsService, r.ControlledRescources.JenkinsService.GetName()},
+		j.NamedResource{r.ControlledRescources.JNLPService, r.ControlledRescources.JNLPService.GetName()},
+		j.NamedResource{r.ControlledRescources.Route, r.ControlledRescources.Route.GetName()},
 	}
 
 	if r.ControlledRescources.JenkinsInstance.Spec.UseDeploymentConfig {
 		resourcesToWatch = append(resourcesToWatch,
-			NamedResource{r.ControlledRescources.DeploymentConfig, r.ControlledRescources.DeploymentConfig.GetName()},
+			j.NamedResource{r.ControlledRescources.DeploymentConfig, r.ControlledRescources.DeploymentConfig.GetName()},
 		)
 	} else {
 		resourcesToWatch = append(resourcesToWatch,
-			NamedResource{r.ControlledRescources.Deployment, r.ControlledRescources.Deployment.GetName()},
+			j.NamedResource{r.ControlledRescources.Deployment, r.ControlledRescources.Deployment.GetName()},
 		)
 	}
 
 	if r.isPersistent() {
 		r.ControlledRescources.PersistentVolumeClaim = newJenkinsPvc(r.ControlledRescources.JenkinsInstance, JenkinsInstanceName)
-		resourcesToWatch = append(resourcesToWatch, NamedResource{r.ControlledRescources.PersistentVolumeClaim, r.ControlledRescources.PersistentVolumeClaim.GetName()})
+		resourcesToWatch = append(resourcesToWatch, j.NamedResource{r.ControlledRescources.PersistentVolumeClaim, r.ControlledRescources.PersistentVolumeClaim.GetName()})
 	}
 
 	// Set reference and watch resources
@@ -128,7 +130,7 @@ func (r *JenkinsReconciler) Reconcile(request reconcile.Request) (reconcile.Resu
 	return r.Result, err
 }
 
-func (r *JenkinsReconciler) setControllerReferenceOnWatch(resourcesToWatch []NamedResource) {
+func (r *JenkinsReconciler) setControllerReferenceOnWatch(resourcesToWatch []j.NamedResource) {
 	// Set Controller reference as Jenkins Instance
 	for _, namedRes := range resourcesToWatch {
 		resource := r.parseResourceToStatic(namedRes, r.ControlledRescources.JenkinsInstance.GetNamespace())
@@ -140,7 +142,7 @@ func (r *JenkinsReconciler) setControllerReferenceOnWatch(resourcesToWatch []Nam
 	}
 }
 
-func (r *JenkinsReconciler) updateResourcesOnWatch(resourcesToWatch []NamedResource) {
+func (r *JenkinsReconciler) updateResourcesOnWatch(resourcesToWatch []j.NamedResource) {
 	// Watch resources and create if they aren't present
 	for _, namedRes := range resourcesToWatch {
 		resource := r.parseResourceToRuntime(namedRes, r.ControlledRescources.JenkinsInstance.GetNamespace())
@@ -203,7 +205,7 @@ func (r *JenkinsReconciler) getJenkinsJNLPService() *corev1.Service {
 	return newJenkinsService(r.ControlledRescources.JenkinsInstance, JenkinsInstanceName+JenkinsJnlpServiceSuffix, jenkinsJNLPPort)
 }
 
-func (r *JenkinsReconciler) createResourceIfNotPresent(resource RuntimeResource) error {
+func (r *JenkinsReconciler) createResourceIfNotPresent(resource j.RuntimeResource) error {
 	namespaceNameLog := "| Namespace " + resource.NamespacedName.Namespace + " | Name " + resource.NamespacedName.Name
 	message := "createResourceIfNotPresent: " + namespaceNameLog
 	noRequeueMessage := message + " REQUEUE DISABLED "
@@ -221,7 +223,7 @@ func (r *JenkinsReconciler) createResourceIfNotPresent(resource RuntimeResource)
 	return err
 }
 
-func (r *JenkinsReconciler) checkResourceIfExists(resource RuntimeResource) error {
+func (r *JenkinsReconciler) checkResourceIfExists(resource j.RuntimeResource) error {
 	namespaceNameLog := "| Namespace " + resource.NamespacedName.Namespace + " | Name " + resource.NamespacedName.Name
 	message := "checkResourceIfExists: " + namespaceNameLog
 
@@ -238,7 +240,7 @@ func (r *JenkinsReconciler) isPersistent() bool {
 	return r.ControlledRescources.JenkinsInstance.Spec.Persistence.Enabled
 }
 
-func (r *JenkinsReconciler) createResource(resource RuntimeResource) {
+func (r *JenkinsReconciler) createResource(resource j.RuntimeResource) {
 	namespaceNameLog := "| Namespace " + resource.NamespacedName.Namespace + " | Name " + resource.NamespacedName.Name
 	message := "createResource: " + namespaceNameLog
 	requeueMessage := message + " REQUEUE ENABLED "
@@ -252,9 +254,9 @@ func (r *JenkinsReconciler) createResource(resource RuntimeResource) {
 	}
 }
 
-func (r *JenkinsReconciler) parseResourceToStatic(namedRes NamedResource, namespace string) StaticResource {
+func (r *JenkinsReconciler) parseResourceToStatic(namedRes j.NamedResource, namespace string) j.StaticResource {
 	resource := namedRes.Object.(metav1.Object)
-	return StaticResource{
+	return j.StaticResource{
 		Object: resource,
 		NamespacedName: types.NamespacedName{
 			Name:      namedRes.Name,
@@ -263,9 +265,9 @@ func (r *JenkinsReconciler) parseResourceToStatic(namedRes NamedResource, namesp
 	}
 }
 
-func (r *JenkinsReconciler) parseResourceToRuntime(namedRes NamedResource, namespace string) RuntimeResource {
+func (r *JenkinsReconciler) parseResourceToRuntime(namedRes j.NamedResource, namespace string) j.RuntimeResource {
 	resource := namedRes.Object.(runtime.Object)
-	return RuntimeResource{
+	return j.RuntimeResource{
 		Object: resource,
 		NamespacedName: types.NamespacedName{
 			Name:      namedRes.Name,
