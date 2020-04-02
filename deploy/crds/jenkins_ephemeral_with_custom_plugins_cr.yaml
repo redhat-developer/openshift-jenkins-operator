@@ -1,0 +1,20 @@
+---
+apiVersion: jenkins.dev/v1alpha1
+kind: JenkinsImage
+metadata:
+  name: example-jenkinsimage
+spec:
+  # Add fields here
+  plugins:
+  - name: blueocean
+    version: 1.3.0
+
+---
+apiVersion: jenkins.dev/v1alpha1
+kind: Jenkins
+metadata:
+  name: example-jenkins
+spec:
+  useDeploymentConfig: true
+  persistence: 
+    enabled: false

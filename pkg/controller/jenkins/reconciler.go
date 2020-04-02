@@ -155,7 +155,6 @@ func (r *JenkinsReconciler) updateResourcesOnWatch(resourcesToWatch []j.NamedRes
 }
 
 func (r *JenkinsReconciler) createAllResources() {
-
 	verifyOpenshiftAPIs()
 
 	// Define Deployment Config

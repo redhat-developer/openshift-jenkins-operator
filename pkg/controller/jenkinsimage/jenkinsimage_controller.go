@@ -1,15 +1,22 @@
 package jenkinsimage
 
 import (
+	"bytes"
 	"context"
+	"fmt"
 	buildv1 "github.com/openshift/api/build/v1"
 	imagev1 "github.com/openshift/api/image/v1"
 	jenkinsv1alpha1 "github.com/redhat-developer/openshift-jenkins-operator/pkg/apis/jenkins/v1alpha1"
-	j "github.com/redhat-developer/openshift-jenkins-operator/pkg/controller/controllerutil"
+	cu "github.com/redhat-developer/openshift-jenkins-operator/pkg/controller/controllerutil"
+	"io/ioutil"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"reflect"
+
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	"reflect"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -22,11 +29,16 @@ const (
 	ImageStreamTagKind      = "ImageStreamTag"
 	DockerImageKind         = "DockerImage"
 	ImageToTagSeparator     = ":"
-    ImageNameSeparator = "/"
+    ImageNameSeparator      = "/"
     DefaultRegistryHostname = "image-registry.openshift-image-registry.svc:5000"
 	DefaultImageNamespace   = "openshift"
 	DefaultJenkinsBaseImage = "jenkins" + ":" + "2"
 	DefaultImageStreamTag   = "latest"
+	PluginsListFilename     = "plugins.txt"
+
+	OcCommand = "oc"
+	StartBuildArg = "start-build"
+	FromDirArg = "--from-dir"
 )
 
 var log = logf.Log.WithName("jenkinsimage_controller")
@@ -51,17 +63,17 @@ func add(mgr manager.Manager, r reconcile.Reconciler) error {
 	}
 	// Create owner reference stating the owner of all the resources under the controller
 	ownerRef := &jenkinsv1alpha1.JenkinsImage{}
-	resourcesToWatch := []j.NamedResource{
-		j.NamedResource{ownerRef, ""},
-		j.NamedResource{&imagev1.ImageStream{}, ""},
-		j.NamedResource{&buildv1.BuildConfig{}, ""},
+	resourcesToWatch := []cu.NamedResource{
+		cu.NamedResource{ownerRef, ""},
+		cu.NamedResource{&imagev1.ImageStream{}, ""},
+		cu.NamedResource{&buildv1.BuildConfig{}, ""},
 	}
 	for _, resource := range resourcesToWatch {
 		ownerReference := ownerRef
 		if reflect.DeepEqual(resource.Object, ownerRef) {
 			ownerReference = nil
 		}
-		j.WatchResourceOrStackError(c, resource, ownerReference)
+		cu.WatchResourceOrStackError(c, resource, ownerReference)
 	}
 	return nil
 
@@ -81,8 +93,8 @@ type ReconcileJenkinsImage struct {
 // The Controller will requeue the request to be processed again if the returned error is non-nil or
 // Result.Requeue is true, otherwise upon completion it will remove the work from the queue.
 func (r *ReconcileJenkinsImage) Reconcile(request reconcile.Request) (reconcile.Result, error) {
-	reqLogger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
-	reqLogger.Info("Reconciling JenkinsImage")
+	logger := log.WithValues("Request.Namespace", request.Namespace, "Request.Name", request.Name)
+	logger.Info("Reconciling JenkinsImage")
 
 	// Fetch the JenkinsImage instance
 	instance := &jenkinsv1alpha1.JenkinsImage{}
@@ -108,7 +120,7 @@ func (r *ReconcileJenkinsImage) Reconcile(request reconcile.Request) (reconcile.
 	isFound := &imagev1.ImageStream{}
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: imagestream.Name, Namespace: imagestream.Namespace}, isFound)
 	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Info("Creating a new ImageStream", "ImageStream.Namespace", imagestream.Namespace, "ImageStream.Name", imagestream.Name)
+		logger.Info("Creating a new ImageStream", "ImageStream.Namespace", imagestream.Namespace, "ImageStream.Name", imagestream.Name)
 		err = r.client.Create(context.TODO(), imagestream)
 		if err != nil {
 			return reconcile.Result{}, err
@@ -130,18 +142,60 @@ func (r *ReconcileJenkinsImage) Reconcile(request reconcile.Request) (reconcile.
 	found := &buildv1.BuildConfig{}
 	err = r.client.Get(context.TODO(), types.NamespacedName{Name: buildConfig.Name, Namespace: buildConfig.Namespace}, found)
 	if err != nil && errors.IsNotFound(err) {
-		reqLogger.Info("Creating a new BuildConfig", "BuildConfig.Namespace", buildConfig.Namespace, "BuildConfig.Name", buildConfig.Name)
+		logger.Info("Creating a new BuildConfig", "BuildConfig.Namespace", buildConfig.Namespace, "BuildConfig.Name", buildConfig.Name)
 		err = r.client.Create(context.TODO(), buildConfig)
 		if err != nil {
 			return reconcile.Result{}, err
 		}
-		// BuildConfig created successfully - don't requeue
+		// BuildConfig created successfully - don't requeue and start the binary build from temp dir
+		startBinaryBuild(instance, buildConfig)
 		return reconcile.Result{}, nil
 	} else if err != nil {
 		return reconcile.Result{}, err
 	}
 
 	// BuildConfig already exists - don't requeue
-	reqLogger.Info("Skip reconcile: BuildConfig already exists", "BuildConfig.Namespace", found.Namespace, "BuildConfig.Name", found.Name)
+	logger.Info("Skip reconcile: BuildConfig already exists", "BuildConfig.Namespace", found.Namespace, "BuildConfig.Name", found.Name)
 	return reconcile.Result{}, nil
+}
+
+func startBinaryBuild(instance *jenkinsv1alpha1.JenkinsImage, bc *buildv1.BuildConfig) {
+	name := bc.Name
+	logger := log.WithName("jenkinsimage_startbinarybuild")
+	tmpDir, err := ioutil.TempDir("","prefix")
+	if err != nil {
+		logger.Error(err, "Error")
+		fmt.Println(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	pluginsFile, err := os.Create(filepath.Join(tmpDir, filepath.Base(PluginsListFilename)))
+	if err != nil {
+		logger.Error(err, fmt.Sprint("Error while creating tmp file for binary build: ", pluginsFile , err))
+		fmt.Println(err)
+		pluginsFile.Close()
+		return
+	}
+	defer pluginsFile.Close()
+	for _, v := range instance.Spec.Plugins {
+		fmt.Fprintf(pluginsFile, "%s:%s", v.Name, v.Version)
+		logger.Info(fmt.Sprintf("Writing value %s into file %s ", pluginsFile.Name() , v.Name))
+		if err != nil {
+			logger.Error(err, fmt.Sprint("Error while writing plugins list into tmpFile: ", pluginsFile , err))
+			return
+		}
+	}
+	err = pluginsFile.Close()
+	if err != nil {
+		logger.Error(err, fmt.Sprint("Error while closing plugins file: ", pluginsFile , err))
+		return
+	}
+
+	cmd := exec.Command(OcCommand, StartBuildArg, name, FromDirArg, tmpDir)
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	err = cmd.Run()
+	if err != nil {
+		logger.Error(err, fmt.Sprint("oc start-build command failed with error: ", cmd))
+	}
 }
