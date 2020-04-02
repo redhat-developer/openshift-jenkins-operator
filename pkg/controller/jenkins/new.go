@@ -2,6 +2,7 @@ package jenkins
 
 import (
 	appsv1 "github.com/openshift/api/apps/v1"
+	buildv1 "github.com/openshift/api/build/v1"
 	routev1 "github.com/openshift/api/route/v1"
 	jenkinsv1alpha1 "github.com/redhat-developer/openshift-jenkins-operator/pkg/apis/jenkins/v1alpha1"
 	kappsv1 "k8s.io/api/apps/v1"
@@ -10,8 +11,17 @@ import (
 	resource "k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	//labels "k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/controller-runtime/pkg/client/config"
+)
+
+var (
+	routeAPIFound            = false
+	deploymentConfigAPIFound = false
+	buildAPIFound            = false
 )
 
 // newDeploymentConfigForCR returns a jenkins DeploymentConfig with the same name/namespace as the cr
@@ -265,3 +275,63 @@ func newJenkinsRoleBinding(cr *jenkinsv1alpha1.Jenkins, jenkinsServiceAccountNam
 }
 
 func int32Ptr(i int32) *int32 { return &i }
+
+// VerifyAPI will verify that the given group/version is present in the cluster.
+func verifyAPI(group string, version string) (bool, error) {
+	cfg, err := config.GetConfig()
+	if err != nil {
+		// Unable to get KBS Config
+		return false, err
+	}
+
+	k8s, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		// Unable to create K8s client
+		return false, err
+	}
+
+	gv := schema.GroupVersion{
+		Group:   group,
+		Version: version,
+	}
+
+	if err = discovery.ServerSupportsVersion(k8s, gv); err != nil {
+		// error, API not available
+		return false, nil
+	}
+
+	// API Exists
+	return true, nil
+}
+
+func verifyRouteAPI() error {
+	found, err := verifyAPI(routev1.GroupName, routev1.SchemeGroupVersion.Version)
+	if err != nil {
+		return err
+	}
+	routeAPIFound = found
+	return nil
+}
+
+func verifyDeploymentConfigAPI() error {
+	found, err := verifyAPI(appsv1.GroupName, appsv1.SchemeGroupVersion.Version)
+	if err != nil {
+		return err
+	}
+	deploymentConfigAPIFound = found
+	return nil
+}
+
+func verifyBuildAPI() error {
+	found, err := verifyAPI(buildv1.GroupName, buildv1.SchemeGroupVersion.Version)
+	if err != nil {
+		return err
+	}
+	buildAPIFound = found
+	return nil
+}
+
+func verifyOpenshiftAPIs() {
+	verifyRouteAPI()
+	verifyDeploymentConfigAPI()
+}

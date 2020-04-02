@@ -153,21 +153,25 @@ func (r *JenkinsReconciler) updateResourcesOnWatch(resourcesToWatch []NamedResou
 }
 
 func (r *JenkinsReconciler) createAllResources() {
-	// Define a DeploymentConfig
-	//r.ControlledRescources.DeploymentConfig = newJenkinsDeploymentConfig(r.ControlledRescources.JenkinsInstance, JenkinsInstanceName, JenkinsInstanceName+JenkinsJnlpServiceSuffix, r.ControlledRescources.JenkinsInstance.Spec.Persistence.Enabled)
 
-	if r.ControlledRescources.JenkinsInstance.Spec.UseDeploymentConfig {
+	verifyOpenshiftAPIs()
+
+	// Define Deployment Config
+	if deploymentConfigAPIFound && r.ControlledRescources.JenkinsInstance.Spec.UseDeploymentConfig {
 		r.ControlledRescources.DeploymentConfig = newJenkinsDeploymentConfig(r.ControlledRescources.JenkinsInstance, JenkinsInstanceName, JenkinsInstanceName+JenkinsJnlpServiceSuffix, r.ControlledRescources.JenkinsInstance.Spec.Persistence.Enabled)
 	} else {
+		//Define Deployment
 		r.ControlledRescources.Deployment = newJenkinsDeployment(r.ControlledRescources.JenkinsInstance, JenkinsInstanceName, JenkinsInstanceName+JenkinsJnlpServiceSuffix, r.ControlledRescources.JenkinsInstance.Spec.Persistence.Enabled)
 
 	}
 	// Define Jenkins Services
 	r.ControlledRescources.JenkinsService = r.getJenkinsService()
 	r.ControlledRescources.JNLPService = r.getJenkinsJNLPService()
-	// Define Route
-	r.ControlledRescources.Route = newJenkinsRoute(r.ControlledRescources.JenkinsInstance, r.ControlledRescources.JenkinsService)
 
+	// Define Route
+	if routeAPIFound {
+		r.ControlledRescources.Route = newJenkinsRoute(r.ControlledRescources.JenkinsInstance, r.ControlledRescources.JenkinsService)
+	}
 	// Create RBAC and manage
 	r.ControlledRescources.ServiceAccount = newJenkinsServiceAccount(r.ControlledRescources.JenkinsInstance, JenkinsInstanceName)
 	r.ControlledRescources.RoleBinding = newJenkinsRoleBinding(r.ControlledRescources.JenkinsInstance, JenkinsInstanceName)
